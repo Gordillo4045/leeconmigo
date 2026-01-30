@@ -24,6 +24,8 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -38,12 +40,35 @@ export function LoginForm({
         password,
       });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
+
       router.push("/protected");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    const supabase = createClient();
+    setIsGoogleLoading(true);
+    setError(null);
+
+    try {
+      const origin = window.location.origin;
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${origin}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+      // OAuth redirige solo
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "An error occurred");
+      setIsGoogleLoading(false);
     }
   };
 
@@ -56,6 +81,7 @@ export function LoginForm({
             Enter your email below to login to your account
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           <form onSubmit={handleLogin}>
             <div className="flex flex-col gap-6">
@@ -70,6 +96,7 @@ export function LoginForm({
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
+
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
@@ -88,17 +115,35 @@ export function LoginForm({
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
+
               {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
+
+              {/* LOGIN */}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || isGoogleLoading}
+              >
                 {isLoading ? "Logging in..." : "Login"}
               </Button>
+
+              {/* GOOGLE */}
+              <div className="text-center text-sm opacity-60">or</div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleGoogle}
+                disabled={isLoading || isGoogleLoading}
+              >
+                {isGoogleLoading ? "Connecting..." : "Continue with Google"}
+              </Button>
             </div>
+
             <div className="mt-4 text-center text-sm">
               Don&apos;t have an account?{" "}
-              <Link
-                href="/auth/sign-up"
-                className="underline underline-offset-4"
-              >
+              <Link href="/auth/sign-up" className="underline underline-offset-4">
                 Sign up
               </Link>
             </div>
