@@ -26,7 +26,11 @@ export function LogoutButton() {
 
       setUser({
         email: user.email ?? null,
-        avatarUrl: user.user_metadata?.avatar_url ?? null,
+        // Google guarda la foto en 'picture'; Supabase a veces en 'avatar_url'
+        avatarUrl:
+          user.user_metadata?.avatar_url ??
+          user.user_metadata?.picture ??
+          null,
       });
     };
 
@@ -47,8 +51,9 @@ export function LogoutButton() {
       {user?.avatarUrl ? (
         <img
           src={user.avatarUrl}
-          alt="User avatar"
-          className="h-8 w-8 rounded-full"
+          alt="Avatar"
+          className="h-8 w-8 rounded-full object-cover"
+          referrerPolicy="no-referrer"
         />
       ) : (
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium">
