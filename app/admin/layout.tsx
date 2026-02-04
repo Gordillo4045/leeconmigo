@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getProfileByUserId } from "@/lib/auth/get-profile-server";
 
 export default async function AdminLayout({
   children,
@@ -8,20 +9,13 @@ export default async function AdminLayout({
   children: ReactNode;
 }) {
   const supabase = await createClient();
-
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
+  const userId = user?.sub;
 
-  if (!user) {
-    redirect("/auth/login");
-  }
+  if (!userId) redirect("/auth/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.sub)
-    .single();
-
+  const profile = await getProfileByUserId(supabase, userId);
   if (!profile || !["master", "admin"].includes(profile.role)) {
     redirect("/unauthorized");
   }
