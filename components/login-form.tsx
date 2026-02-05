@@ -55,16 +55,19 @@ export function LoginForm({
     setError(null);
 
     try {
-      const origin = window.location.origin;
+const origin = window.location.origin;
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${origin}/auth/callback`,
-        },
-      });
+const { error } = await supabase.auth.signInWithOAuth({
+  provider: "google",
+  options: {
+    redirectTo: `${origin}/auth/callback`,
+    queryParams: {
+      prompt: "select_account",
+    },
+  },
+});
 
-      if (error) throw error;
+if (error) console.error(error);
       // OAuth redirige solo
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
