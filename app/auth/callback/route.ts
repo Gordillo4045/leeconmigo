@@ -36,9 +36,11 @@ export async function GET(request: Request) {
   if (role === "maestro") {
     return NextResponse.redirect(new URL("/maestro", url.origin));
   }
-  if (role === "admin" || role === "master") {
+  if (role === "admin") {
     return NextResponse.redirect(new URL("/admin", url.origin));
   }
-
-  return NextResponse.redirect(new URL("/protected", url.origin));
+  if (role === "master") {
+    return NextResponse.redirect(new URL("/master", url.origin));
+  }
+  return NextResponse.redirect(new URL("/", url.origin));
 }
