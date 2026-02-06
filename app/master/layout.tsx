@@ -1,15 +1,11 @@
-import { ReactNode } from "react";
+import { ReactNode, Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getProfileByUserId } from "@/lib/auth/get-profile-server";
 import { getNav } from "@/components/dashboard/nav";
 import { DashboardShell } from "@/components/dashboard/shell";
 
-export default async function MasterLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+async function MasterLayoutGuard({ children }: { children: ReactNode }) {
   const supabase = await createClient();
 
   const { data } = await supabase.auth.getClaims();
@@ -34,5 +30,17 @@ export default async function MasterLayout({
     >
       {children}
     </DashboardShell>
+  );
+}
+
+export default function MasterLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <MasterLayoutGuard>{children}</MasterLayoutGuard>
+    </Suspense>
   );
 }
