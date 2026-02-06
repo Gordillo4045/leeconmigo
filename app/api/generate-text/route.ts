@@ -147,7 +147,38 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = JSON.parse(outputText);
+    // ✅ Parseo tolerante: intenta JSON directo, si falla extrae el primer objeto {...}
+let result: any;
+try {
+  result = JSON.parse(outputText);
+} catch {
+  const start = outputText.indexOf("{");
+  const end = outputText.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) {
+    return NextResponse.json(
+      {
+        error: "Model returned non-JSON output",
+        sample: outputText.slice(0, 400),
+      },
+      { status: 502 }
+    );
+  }
+
+  const candidate = outputText.slice(start, end + 1);
+
+  try {
+    result = JSON.parse(candidate);
+  } catch (e: any) {
+    return NextResponse.json(
+      {
+        error: "Invalid JSON from model",
+        message: e?.message ?? String(e),
+        sample: candidate.slice(0, 600),
+      },
+      { status: 502 }
+    );
+  }
+}
 
     // defensas finales
     if (!include_questions) result.questions = [];
