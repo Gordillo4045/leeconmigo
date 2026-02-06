@@ -2,6 +2,8 @@ import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getProfileByUserId } from "@/lib/auth/get-profile-server";
+import { getNav } from "@/components/dashboard/nav";
+import { DashboardShell } from "@/components/dashboard/shell";
 
 export default async function AdminLayout({
   children,
@@ -9,16 +11,27 @@ export default async function AdminLayout({
   children: ReactNode;
 }) {
   const supabase = await createClient();
+
   const { data } = await supabase.auth.getClaims();
-  const user = data?.claims;
-  const userId = user?.sub;
+  const userId = data?.claims?.sub;
 
   if (!userId) redirect("/auth/login");
 
   const profile = await getProfileByUserId(supabase, userId);
-  if (!profile || !["master", "admin"].includes(profile.role)) {
+  if (!profile || (profile.role !== "admin" && profile.role !== "master")) {
     redirect("/unauthorized");
   }
 
-  return <>{children}</>;
+  const nav = getNav(profile.role);
+
+  return (
+    <DashboardShell
+      title={profile.role === "master" ? "Master" : "Admin"}
+      nav={nav}
+      email={profile.email ?? ""}
+      fullName={profile.full_name}
+    >
+      {children}
+    </DashboardShell>
+  );
 }

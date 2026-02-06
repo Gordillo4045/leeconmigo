@@ -1,22 +1,29 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAdminClientSafe } from "@/lib/supabase/admin";
+import { USER_ROLES, type UserRole } from "./roles";
+import type { ServerProfile } from "./types";
 
-export type ProfileRole = "tutor" | "maestro" | "admin" | "master";
-
-/**
- * Obtiene el perfil (rol) por user id en el servidor.
- * Usa admin (service role) si SUPABASE_SERVICE_ROLE_KEY está configurada;
- * si no, usa el cliente con sesión (requiere RLS: SELECT en profiles donde id = auth.uid()).
- */
 export async function getProfileByUserId(
   supabase: SupabaseClient,
   userId: string
-): Promise<{ role: ProfileRole } | null> {
+): Promise<ServerProfile | null> {
   const client = getAdminClientSafe() ?? supabase;
-  const { data } = await client
+
+  const { data, error } = await client
     .from("profiles")
-    .select("role")
+    .select("id, role, email, full_name, institution_id")
     .eq("id", userId)
     .single();
-  return data as { role: ProfileRole } | null;
+
+  if (error || !data) return null;
+
+  if (!USER_ROLES.includes(data.role as UserRole)) return null;
+
+  return {
+    id: data.id,
+    role: data.role as UserRole,
+    email: data.email ?? null,
+    full_name: data.full_name ?? null,
+    institution_id: data.institution_id ?? null,
+  };
 }
