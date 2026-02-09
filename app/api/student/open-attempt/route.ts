@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const bodySchema = z.object({
   code: z.string().min(4).max(32),
@@ -18,7 +18,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const supabase = await createClient();
+    // Cliente admin (service role): el alumno no tiene sesión; validamos el código en el servidor
+    const supabase = createAdminClient();
 
     const { data, error } = await supabase.rpc("student_open_attempt", {
       p_code: parsed.data.code,

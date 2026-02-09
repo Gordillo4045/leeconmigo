@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const bodySchema = z.object({
   attempt_id: z.string().uuid(),
@@ -28,7 +28,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const supabase = await createClient();
+    // Cliente admin: el alumno no tiene sesión; el attempt_id viene del open-attempt previo
+    const supabase = createAdminClient();
 
     const { data, error } = await supabase.rpc("student_submit_attempt", {
       p_attempt_id: parsed.data.attempt_id,
