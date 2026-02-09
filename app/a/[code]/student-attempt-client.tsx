@@ -73,7 +73,15 @@ export default function StudentAttemptClient({ code }: { code: string }) {
         throw new Error(json?.message || json?.error || details || `HTTP ${res.status}`);
       }
 
-      setPayload(json.result as OpenAttempt);
+      const result = json.result as OpenAttempt | null;
+      if (!result?.text?.content || !Array.isArray(result?.questions)) {
+        setPayload(null);
+        setPhase("error");
+        setErr("No se encontró la evaluación o el código no es válido.");
+        return;
+      }
+
+      setPayload(result);
       setPhase("reading_ready");
     } catch (e: any) {
       setPayload(null);
@@ -145,10 +153,11 @@ export default function StudentAttemptClient({ code }: { code: string }) {
   }, [payload, answers]);
 
   return (
-    <div className="mx-auto max-w-3xl p-4 space-y-4">
-      {phase === "loading" ? (
-        <div className="text-sm text-muted-foreground">Cargando evaluación…</div>
-      ) : null}
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto max-w-3xl p-4 space-y-4">
+        {phase === "loading" ? (
+          <div className="py-8 text-center text-muted-foreground">Cargando evaluación…</div>
+        ) : null}
 
       {phase === "error" ? (
         <div className="space-y-3">
@@ -322,6 +331,7 @@ export default function StudentAttemptClient({ code }: { code: string }) {
           ) : null}
         </>
       ) : null}
+      </div>
     </div>
   );
 }
