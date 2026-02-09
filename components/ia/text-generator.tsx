@@ -143,17 +143,17 @@ export function TextGenerator() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">Generar texto (IA)</h1>
-        <p className="text-sm text-muted-foreground">
+    <div className="space-y-8">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Generar texto (IA)</h1>
+        <p className="text-sm text-muted-foreground max-w-xl">
           Genera un texto para lectura y preguntas de comprensión (JSON estructurado).
         </p>
       </div>
 
-      <div className="rounded-lg border p-4 space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="space-y-1">
+      <div className="rounded-lg border bg-card p-6 space-y-6">
+        <div className="grid gap-5 md:grid-cols-2">
+          <label className="flex flex-col gap-2">
             <span className="text-sm font-medium">Temática</span>
             <input
               className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
@@ -164,7 +164,7 @@ export function TextGenerator() {
             <span className="text-xs text-muted-foreground">3–80 caracteres</span>
           </label>
 
-          <label className="space-y-1">
+          <label className="flex flex-col gap-2">
             <span className="text-sm font-medium">Grado</span>
             <select
               className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
@@ -177,7 +177,7 @@ export function TextGenerator() {
             </select>
           </label>
 
-          <label className="space-y-1">
+          <label className="flex flex-col gap-2">
             <span className="text-sm font-medium">Dificultad</span>
             <select
               className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
@@ -195,7 +195,7 @@ export function TextGenerator() {
             </select>
           </label>
 
-          <label className="space-y-1">
+          <label className="flex flex-col gap-2">
             <span className="text-sm font-medium">Palabras</span>
             <input
               type="number"
@@ -209,7 +209,7 @@ export function TextGenerator() {
           </label>
         </div>
 
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-3 pt-1">
           <input
             type="checkbox"
             checked={form.include_questions}
@@ -235,7 +235,7 @@ export function TextGenerator() {
           </div>
         ) : null}
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3 pt-2">
           <Button onClick={onGenerate} disabled={!canSubmit}>
             {loading ? "Generando..." : "Generar"}
           </Button>
