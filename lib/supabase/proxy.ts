@@ -7,6 +7,7 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
+  try {
   // If the env vars are not set, skip proxy check. You can remove this
   // once you setup the project.
   if (!hasEnvVars) {
@@ -47,13 +48,15 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
-  if (
-    request.nextUrl.pathname !== "/" &&
-    !user &&
-    !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
+  // Rutas públicas: home, auth, login y /a/[code] (alumno entra con código, sin sesión)
+  const path = request.nextUrl.pathname;
+  const isPublic =
+    path === "/" ||
+    path.startsWith("/login") ||
+    path.startsWith("/auth") ||
+    path.startsWith("/a/");
+
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);
@@ -73,4 +76,8 @@ export async function updateSession(request: NextRequest) {
   // of sync and terminate the user's session prematurely!
 
   return supabaseResponse;
+  } catch {
+    // Si falla algo (p. ej. en Edge), dejar pasar la request para que la app cargue
+    return NextResponse.next({ request });
+  }
 }
