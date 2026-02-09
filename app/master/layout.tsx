@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getProfileByUserId } from "@/lib/auth/get-profile-server";
 import { getNav } from "@/components/dashboard/nav";
-import { DashboardShell } from "@/components/dashboard/shell";
+import { SidebarLayout } from "@/components/dashboard/sidebar-layout";
 
 async function MasterLayoutGuard({ children }: { children: ReactNode }) {
   const supabase = await createClient();
@@ -22,14 +22,14 @@ async function MasterLayoutGuard({ children }: { children: ReactNode }) {
   const nav = getNav(profile.role);
 
   return (
-    <DashboardShell
-      title="Master"
+    <SidebarLayout
       nav={nav}
+      role={profile.role}
       email={profile.email ?? ""}
       fullName={profile.full_name}
     >
       {children}
-    </DashboardShell>
+    </SidebarLayout>
   );
 }
 
