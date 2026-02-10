@@ -13,10 +13,17 @@ export function getNav(role: UserRole): NavItem[] {
     ];
   }
 
+  if (role === "maestro") {
+    return [
+      { label: "Dashboard", href: "/maestro" },
+      { label: "Generar (IA)", href: "/maestro/generar-ia" },
+      { label: "Resultados", href: "/maestro/resultados" },
+      { label: "Gestión", href: "/maestro/gestion" },
+    ];
+  }
+
   const base =
-    role === "maestro"
-      ? "/maestro"
-      : role === "admin"
+    role === "admin"
       ? "/admin"
       : "/master";
 

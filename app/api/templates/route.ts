@@ -14,11 +14,42 @@ export async function GET() {
     }
 
     const profile = await getProfileByUserId(supabase, userId);
-    if (!profile || profile.role !== "maestro") {
+    if (!profile) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    }
+
+    // Solo maestro debe llegar aquí; otros roles no usan este endpoint hoy.
+    if (profile.role !== "maestro") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // Listado por institución del maestro (RLS + filtro por institución)
+    // 1) Obtener los grados de los salones donde el maestro está asignado
+    const { data: ctRows, error: ctError } = await supabase
+      .from("classroom_teachers")
+      .select("classroom_id, classrooms!inner(grade_id)")
+      .eq("teacher_profile_id", profile.id);
+
+    if (ctError) {
+      return NextResponse.json(
+        { error: "DB error", message: ctError.message },
+        { status: 500 },
+      );
+    }
+
+    const allowedGrades = Array.from(
+      new Set(
+        (ctRows ?? [])
+          .map((row: any) => row.classrooms?.grade_id)
+          .filter((g: any) => typeof g === "number"),
+      ),
+    ) as number[];
+
+    // Si el maestro no tiene grados asociados vía salones, no mostrar ninguna plantilla.
+    if (!allowedGrades.length) {
+      return NextResponse.json({ ok: true, templates: [] }, { status: 200 });
+    }
+
+    // 2) Listado de textos SOLO para los grados donde el maestro tiene salón
     const { data, error } = await supabase
       .from("texts")
       .select(
@@ -33,8 +64,9 @@ export async function GET() {
           id,
           question_count
         )
-      `
+      `,
       )
+      .in("grade_id", allowedGrades)
       .order("created_at", { ascending: false });
 
     if (error) {
