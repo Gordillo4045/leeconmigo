@@ -19,6 +19,7 @@ export function getNav(role: UserRole): NavItem[] {
       { label: "Generar (IA)", href: "/maestro/generar-ia" },
       { label: "Resultados", href: "/maestro/resultados" },
       { label: "Gestión", href: "/maestro/gestion" },
+      { label: "Evaluaciones publicadas", href: "/maestro/gestion/evaluaciones" },
     ];
   }
 
@@ -28,8 +29,9 @@ export function getNav(role: UserRole): NavItem[] {
       : "/master";
 
   return [
-    { label: "Generar (IA)", href: base },
+    { label: "Inicio", href: base },
+    { label: "Gestión alumnos y salones", href: `${base}/gestion` },
+    { label: "Evaluaciones publicadas", href: `${base}/gestion/evaluaciones` },
     { label: "Resultados", href: `${base}/resultados` },
-    { label: "Gestión", href: `${base}/gestion` },
   ];
 }

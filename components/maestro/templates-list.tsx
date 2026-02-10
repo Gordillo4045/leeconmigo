@@ -297,18 +297,27 @@ export function TemplatesList() {
             {publishResult ? (
               <div className="rounded-md border p-3 space-y-2">
                 <div className="font-medium">Códigos generados</div>
+                {classroomId ? (
+                  <div className="text-xs text-muted-foreground">
+                    Salón: <span className="font-medium text-foreground">{classrooms.find((c) => c.id === classroomId)?.name ?? classroomId}</span>
+                  </div>
+                ) : null}
                 <div className="text-xs text-muted-foreground">
                   Session: <span className="font-mono">{publishResult.session_id}</span>
                 </div>
                 {publishResult.codes.length ? (
                   <ul className="grid grid-cols-2 gap-2 text-sm">
                     {publishResult.codes.map((c) => (
-                      <li
-                        key={c.attempt_id}
-                        className="rounded border p-2 text-center font-mono"
-                        title={`student_id: ${c.student_id}\nattempt_id: ${c.attempt_id}`}
-                      >
-                        {c.code}
+                      <li key={c.attempt_id} className="rounded border p-2 text-center font-mono">
+                        <a
+                          href={`/a/${encodeURIComponent(c.code)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                          title={`Abrir evaluación (${c.code})`}
+                        >
+                          {c.code}
+                        </a>
                       </li>
                     ))}
                   </ul>
