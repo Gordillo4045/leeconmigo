@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;1,400&display=swap");
+
 @tailwind base;
 
 @custom-variant dark (&:is(.dark *));
@@ -6,31 +8,42 @@
 
 @layer base {
   :root {
+    --font-display: "Fredoka", sans-serif;
+    --font-body: "Nunito", sans-serif;
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
+    /* Sistema de diseño: violeta, rosa, naranja, verde, azul, amarillo */
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 340 82% 52%;
+    --secondary-foreground: 0 0% 100%;
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
+    --accent: 36 100% 50%;
     --accent-foreground: 0 0% 9%;
+    --success: 152 69% 45%;
+    --success-foreground: 0 0% 100%;
+    --info: 201 96% 45%;
+    --info-foreground: 0 0% 100%;
+    --warning: 36 100% 50%;
+    --warning-foreground: 0 0% 9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --ring: 262 83% 58%;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+    --shadow-playful: 0 4px 14px -3px hsl(var(--primary) / 0.25);
+    --shadow-card: 0 2px 10px -2px hsl(var(--foreground) / 0.08);
   }
   .dark {
     --background: 0 0% 3.9%;
@@ -39,19 +52,25 @@
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 340 82% 52%;
+    --secondary-foreground: 0 0% 100%;
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 36 100% 50%;
+    --accent-foreground: 0 0% 9%;
+    --success: 152 69% 45%;
+    --success-foreground: 0 0% 100%;
+    --info: 201 96% 45%;
+    --info-foreground: 0 0% 100%;
+    --warning: 36 100% 50%;
+    --warning-foreground: 0 0% 9%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --ring: 262 83% 58%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -66,7 +85,42 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-body);
   }
+}
+
+/* Gradientes y sombras del sistema de diseño */
+.gradient-primary {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+}
+.gradient-hero {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--primary) / 0.05) 0%,
+    hsl(var(--secondary) / 0.05) 50%,
+    hsl(var(--accent) / 0.05) 100%
+  );
+}
+.gradient-secondary {
+  background: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--primary) / 0.8));
+}
+.gradient-accent {
+  background: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--warning)));
+}
+.text-gradient-primary {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.shadow-playful {
+  box-shadow: var(--shadow-playful);
+}
+.shadow-card {
+  box-shadow: var(--shadow-card);
+}
+.font-display {
+  font-family: var(--font-display);
 }
 
 :root {
