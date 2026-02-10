@@ -9,8 +9,8 @@ async function TutorLayoutGuard({ children }: { children: ReactNode }) {
   const supabase = await createClient();
 
   const { data } = await supabase.auth.getClaims();
-  const user = data?.claims;
-  const userId = user?.sub;
+  const claims = data?.claims as any;
+  const userId = claims?.sub;
 
   if (!userId) redirect("/auth/login");
 
@@ -21,12 +21,20 @@ async function TutorLayoutGuard({ children }: { children: ReactNode }) {
 
   const nav = getNav(profile.role);
 
+  const avatarUrl =
+    claims?.user_metadata?.avatar_url ??
+    claims?.user_metadata?.picture ??
+    claims?.avatar_url ??
+    claims?.picture ??
+    null;
+
   return (
     <SidebarLayout
       nav={nav}
       role={profile.role}
       email={profile.email ?? ""}
       fullName={profile.full_name}
+      avatarUrl={avatarUrl}
     >
       {children}
     </SidebarLayout>

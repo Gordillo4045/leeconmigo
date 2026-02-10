@@ -11,7 +11,6 @@ import {
   ChevronDown,
   Building,
   BookOpen,
-  User2,
   Moon,
   Sun,
 } from "lucide-react";
@@ -47,6 +46,7 @@ import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
 import type { NavItem } from "./nav";
 import type { UserRole } from "@/lib/auth/roles";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const DEFAULT_ICON = LayoutDashboard;
 const LABEL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -68,6 +68,7 @@ export type AppSidebarProps = {
   role: UserRole;
   fullName: string | null;
   email: string;
+  avatarUrl: string | null;
 } & React.ComponentProps<typeof Sidebar>;
 
 export function AppSidebar({
@@ -75,6 +76,7 @@ export function AppSidebar({
   role,
   fullName,
   email,
+  avatarUrl,
   ...props
 }: AppSidebarProps) {
   const pathname = usePathname();
@@ -178,8 +180,13 @@ export function AppSidebar({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton>
-                  <User2 className="size-4 shrink-0" />
-                  <span>{displayName}</span>
+                  <Avatar className="size-7">
+                    <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
+                    <AvatarFallback>
+                      {displayName.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="truncate max-w-[120px]">{displayName}</span>
                   <ChevronDown className="ml-auto size-4" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>

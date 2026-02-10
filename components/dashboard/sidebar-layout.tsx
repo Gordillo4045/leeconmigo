@@ -12,6 +12,7 @@ type SidebarLayoutProps = {
   role: UserRole;
   email: string;
   fullName: string | null;
+  avatarUrl?: string | null;
   children: ReactNode;
 };
 
@@ -29,6 +30,7 @@ export function SidebarLayout({
   role,
   email,
   fullName,
+  avatarUrl,
   children,
 }: SidebarLayoutProps) {
   return (
@@ -39,6 +41,7 @@ export function SidebarLayout({
         role={role}
         email={email}
         fullName={fullName}
+        avatarUrl={avatarUrl ?? null}
         className="shrink-0"
       />
       <SidebarInset>
