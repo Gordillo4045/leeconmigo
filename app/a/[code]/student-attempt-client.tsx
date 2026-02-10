@@ -61,13 +61,17 @@ export default function StudentAttemptClient({ code }: { code: string }) {
     setReadingEnd(null);
 
     try {
-      const res = await fetch("/api/student/open-attempt", {
+      // URL absoluta y sin cookies para que funcione igual logueado o no (alumno sin sesión)
+      const url = typeof window !== "undefined" ? `${window.location.origin}/api/student/open-attempt` : "/api/student/open-attempt";
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
+        credentials: "omit",
       });
 
-      const json = await res.json().catch(() => ({}));
+      const rawText = await res.text();
+      const json = rawText ? (() => { try { return JSON.parse(rawText); } catch { return {}; } })() : {};
       if (!res.ok) {
         const details = json?.details ? JSON.stringify(json.details) : "";
         throw new Error(json?.message || json?.error || details || `HTTP ${res.status}`);
@@ -77,7 +81,8 @@ export default function StudentAttemptClient({ code }: { code: string }) {
       if (!result?.text?.content || !Array.isArray(result?.questions)) {
         setPayload(null);
         setPhase("error");
-        setErr("No se encontró la evaluación o el código no es válido.");
+        const msg = json?.error ?? json?.message ?? (json.ok === true ? "No se encontró la evaluación o el código no es válido." : "Respuesta inesperada del servidor. Prueba en otra ventana o sin extensiones.");
+        setErr(msg);
         return;
       }
 

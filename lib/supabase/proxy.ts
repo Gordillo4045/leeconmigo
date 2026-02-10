@@ -48,13 +48,14 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
-  // Rutas públicas: home, auth, login y /a/[code] (alumno entra con código, sin sesión)
+  // Rutas públicas: home, auth, login, /a/[code] (alumno con código) y API de alumno sin sesión
   const path = request.nextUrl.pathname;
   const isPublic =
     path === "/" ||
     path.startsWith("/login") ||
     path.startsWith("/auth") ||
-    path.startsWith("/a/");
+    path.startsWith("/a/") ||
+    path.startsWith("/api/student/");
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
