@@ -44,7 +44,8 @@ export async function GET() {
       .order("grade_id", { ascending: true })
       .order("name", { ascending: true });
 
-    const { data, error } = classroomIds ? query.in("id", classroomIds) : await query;
+    const finalQuery = classroomIds ? query.in("id", classroomIds) : query;
+    const { data, error } = await finalQuery;
 
     if (error) {
       return NextResponse.json({ error: "DB error", message: error.message }, { status: 500 });
