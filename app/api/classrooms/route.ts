@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getProfileByUserId } from "@/lib/auth/get-profile-server";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const supabase = await createClient();
 
@@ -13,8 +13,10 @@ export async function GET() {
     const profile = await getProfileByUserId(supabase, userId);
     if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
 
-    // Para maestros, solo mostrar los salones donde está asignado (classroom_teachers).
-    // Para otros roles (admin/master/tutor) dejamos que RLS limite por institución, sin filtro extra.
+    const url = new URL(req.url);
+    const institutionIdParam = url.searchParams.get("institution_id");
+
+    // Para maestros, solo salones asignados. Para admin/tutor RLS limita. Para master, filtrar por institution_id si se envía.
     let classroomIds: string[] | null = null;
     if (profile.role === "maestro") {
       const { data: ctRows, error: ctError } = await supabase
@@ -37,13 +39,16 @@ export async function GET() {
       }
     }
 
-    const query = supabase
+    let query = supabase
       .from("classrooms")
       .select("id,name,grade_id")
       .is("deleted_at", null)
       .order("grade_id", { ascending: true })
       .order("name", { ascending: true });
 
+    if (profile.role === "master" && institutionIdParam) {
+      query = query.eq("institution_id", institutionIdParam);
+    }
     const finalQuery = classroomIds ? query.in("id", classroomIds) : query;
     const { data, error } = await finalQuery;
 

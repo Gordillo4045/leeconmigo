@@ -47,9 +47,11 @@ const PAGE_SIZE_OPTIONS = [5, 10, 20];
 type Props = {
   basePath: string;
   role: "admin" | "maestro";
+  /** Solo para master: institution_id para filtrar sesiones y salones. */
+  institutionId?: string | null;
 };
 
-export function EvaluationSessionsList({ basePath, role }: Props) {
+export function EvaluationSessionsList({ basePath, role, institutionId }: Props) {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,13 +75,16 @@ export function EvaluationSessionsList({ basePath, role }: Props) {
 
   const loadClassrooms = useCallback(async () => {
     try {
-      const res = await fetch("/api/classrooms");
+      const url = institutionId
+        ? `/api/classrooms?institution_id=${encodeURIComponent(institutionId)}`
+        : "/api/classrooms";
+      const res = await fetch(url);
       const json = await res.json().catch(() => ({}));
       setClassrooms(json.classrooms ?? []);
     } catch {
       setClassrooms([]);
     }
-  }, []);
+  }, [institutionId]);
 
   const loadSessions = useCallback(async () => {
     setLoading(true);
@@ -90,6 +95,7 @@ export function EvaluationSessionsList({ basePath, role }: Props) {
       params.set("page_size", String(pageSize));
       if (statusFilter) params.set("status", statusFilter);
       if (classroomFilter) params.set("classroom_id", classroomFilter);
+      if (institutionId) params.set("institution_id", institutionId);
       const res = await fetch(`${apiBase}?${params.toString()}`);
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error ?? "Error al cargar sesiones");
@@ -104,7 +110,7 @@ export function EvaluationSessionsList({ basePath, role }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [apiBase, page, pageSize, statusFilter, classroomFilter]);
+  }, [apiBase, page, pageSize, statusFilter, classroomFilter, institutionId]);
 
   useEffect(() => {
     loadClassrooms();
