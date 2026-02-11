@@ -28,10 +28,16 @@ export function getNav(role: UserRole): NavItem[] {
       ? "/admin"
       : "/master";
 
-  return [
+  const items: NavItem[] = [
     { label: "Inicio", href: base },
     { label: "Gestión alumnos y salones", href: `${base}/gestion` },
     { label: "Evaluaciones publicadas", href: `${base}/gestion/evaluaciones` },
     { label: "Resultados", href: `${base}/resultados` },
   ];
+
+  if (role === "master") {
+    items.splice(1, 0, { label: "Instituciones", href: "/master/instituciones" });
+  }
+
+  return items;
 }
