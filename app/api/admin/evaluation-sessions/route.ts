@@ -23,8 +23,16 @@ export async function GET(req: Request) {
       MAX_PAGE_SIZE,
       Math.max(1, parseInt(url.searchParams.get("page_size") ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE)
     );
-    const status = url.searchParams.get("status") ?? ""; // open | closed | expired | ""
+    const status = url.searchParams.get("status") ?? "";
     const classroomId = url.searchParams.get("classroom_id") ?? "";
+    const institutionIdParam = url.searchParams.get("institution_id") ?? "";
+
+    if (profile.role === "master" && !institutionIdParam) {
+      return NextResponse.json(
+        { error: "Master debe enviar institution_id para listar sesiones" },
+        { status: 400 }
+      );
+    }
 
     const admin = createAdminClient();
 
@@ -49,6 +57,8 @@ export async function GET(req: Request) {
 
     if (profile.role === "admin" && profile.institution_id) {
       sessionsQuery = sessionsQuery.eq("institution_id", profile.institution_id);
+    } else if (profile.role === "master" && institutionIdParam) {
+      sessionsQuery = sessionsQuery.eq("institution_id", institutionIdParam);
     }
     const nowIso = new Date().toISOString();
     if (status === "open") {
