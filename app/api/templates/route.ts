@@ -44,9 +44,14 @@ export async function GET() {
       ),
     ) as number[];
 
-    // Si el maestro no tiene grados asociados vía salones, no mostrar ninguna plantilla.
+    // Si el maestro no tiene grados asociados vía salones, devolver información útil
     if (!allowedGrades.length) {
-      return NextResponse.json({ ok: true, templates: [] }, { status: 200 });
+      return NextResponse.json({
+        ok: true,
+        templates: [],
+        message: "No tienes salones asignados. Contacta al administrador de tu institución para que te asigne a un salón.",
+        hasClassrooms: false,
+      }, { status: 200 });
     }
 
     // 2) Listado de textos SOLO para los grados donde el maestro tiene salón
@@ -89,7 +94,12 @@ export async function GET() {
         question_count: t.quizzes?.[0]?.question_count ?? 0,
       })) ?? [];
 
-    return NextResponse.json({ ok: true, templates: result }, { status: 200 });
+    return NextResponse.json({
+      ok: true,
+      templates: result,
+      hasClassrooms: true,
+      allowedGrades,
+    }, { status: 200 });
   } catch (err: any) {
     return NextResponse.json(
       { error: "Server error", message: err?.message ?? String(err) },
