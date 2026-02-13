@@ -3,7 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChevronRight, Users, AlertCircle, X, Search, Loader2 } from "lucide-react";
 
 type Institution = { id: string; name: string; code: string | null };
 
@@ -87,121 +105,164 @@ export default function MasterUsuariosPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-display font-bold">Usuarios (Master)</h1>
-          <p className="text-muted-foreground mt-1">
-            Asigna rol e institución. Evita updates manuales en SQL Editor.
-          </p>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Link href="/master" className="hover:text-foreground transition-colors">
+            Inicio
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <span className="text-foreground font-medium">Usuarios</span>
         </div>
-
-        <Button variant="outline" asChild>
-          <Link href="/master/instituciones">Instituciones</Link>
-        </Button>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Usuarios (Master)
+        </h1>
+        <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+          Asigna rol e institución a los usuarios del sistema.
+        </p>
+        <div className="mt-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/master/instituciones">Instituciones</Link>
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader className="space-y-2">
-          <CardTitle>Buscar</CardTitle>
+      {error && (
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button onClick={() => setError(null)} className="text-destructive/60 hover:text-destructive" aria-label="Cerrar">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
-          <div className="flex gap-2 max-w-xl">
-            <input
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              value={q}
-              placeholder="Buscar por email o nombre…"
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <Button onClick={() => loadAll(q)} disabled={loading}>
-              Buscar
-            </Button>
+      <Card className="border border-border shadow-sm">
+        <CardHeader>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle>Lista de usuarios</CardTitle>
+                <CardDescription>
+                  Busca por email o nombre y asigna rol e institución.
+                </CardDescription>
+              </div>
+            </div>
+            <div className="flex gap-2 max-w-xl flex-1 sm:max-w-sm">
+              <Input
+                className="h-9"
+                value={q}
+                placeholder="Buscar por email o nombre…"
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && loadAll(q)}
+              />
+              <Button onClick={() => loadAll(q)} disabled={loading} size="sm" className="gap-1 shrink-0">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                Buscar
+              </Button>
+            </div>
           </div>
         </CardHeader>
 
         <CardContent>
-          {error ? <div className="text-sm text-red-400">{error}</div> : null}
-
           {loading ? (
-            <div className="text-sm text-muted-foreground">Cargando…</div>
+            <div className="space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
           ) : users.length === 0 ? (
-            <div className="text-sm text-muted-foreground">Sin usuarios.</div>
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="rounded-full bg-muted p-4 mb-4">
+                <Users className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium text-foreground">Sin usuarios</p>
+              <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                No hay usuarios que coincidan con la búsqueda o aún no hay registros.
+              </p>
+            </div>
           ) : (
-            <div className="overflow-auto rounded-md border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40">
-                  <tr className="text-left">
-                    <th className="p-3">Email</th>
-                    <th className="p-3">Nombre</th>
-                    <th className="p-3">Rol</th>
-                    <th className="p-3">Institución</th>
-                    <th className="p-3">Acción</th>
-                  </tr>
-                </thead>
-
-                <tbody>
+            <div className="rounded-lg border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <TableHead>Email</TableHead>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Rol</TableHead>
+                    <TableHead>Institución</TableHead>
+                    <TableHead className="w-20">Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {users.map((u) => {
                     const inst = u.institution_id ? institutionsById.get(u.institution_id) : null;
                     const saving = savingId === u.id;
 
                     return (
-                      <tr key={u.id} className="border-t">
-                        <td className="p-3 whitespace-nowrap">{u.email}</td>
-                        <td className="p-3">{u.full_name || "—"}</td>
-
-                        <td className="p-3">
-                          <select
-                            className="h-9 rounded-md border bg-background px-2"
+                      <TableRow key={u.id}>
+                        <TableCell className="whitespace-nowrap font-medium">{u.email}</TableCell>
+                        <TableCell>{u.full_name || "—"}</TableCell>
+                        <TableCell>
+                          <Select
                             value={u.role}
                             disabled={saving}
-                            onChange={(e) =>
-                              updateUser(u.id, { role: e.target.value as UserRow["role"] })
-                            }
+                            onValueChange={(value) => updateUser(u.id, { role: value as UserRow["role"] })}
                           >
-                            {ROLES.map((r) => (
-                              <option key={r} value={r}>
-                                {r}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-
-                        <td className="p-3">
-                          <select
-                            className="h-9 rounded-md border bg-background px-2 min-w-[260px]"
-                            value={u.institution_id ?? ""}
+                            <SelectTrigger className="h-8 w-28">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ROLES.map((r) => (
+                                <SelectItem key={r} value={r}>{r}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={u.institution_id ?? "none"}
                             disabled={saving}
-                            onChange={(e) =>
+                            onValueChange={(value) =>
                               updateUser(u.id, {
-                                institution_id: e.target.value ? e.target.value : null,
+                                institution_id: value === "none" ? null : value,
                               })
                             }
                           >
-                            <option value="">(Sin institución)</option>
-                            {institutions.map((i) => (
-                              <option key={i.id} value={i.id}>
-                                {i.name}
-                                {i.code ? ` (${i.code})` : ""}
-                              </option>
-                            ))}
-                          </select>
-
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Actual: {inst ? `${inst.name}${inst.code ? ` (${inst.code})` : ""}` : "—"}
-                          </div>
-                        </td>
-
-                        <td className="p-3">
-                          {saving ? (
-                            <span className="text-xs text-muted-foreground">Guardando…</span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Auto</span>
+                            <SelectTrigger className="h-8 min-w-[200px]">
+                              <SelectValue placeholder="Sin institución" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">(Sin institución)</SelectItem>
+                              {institutions.map((i) => (
+                                <SelectItem key={i.id} value={i.id}>
+                                  {i.name}
+                                  {i.code ? ` (${i.code})` : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {inst && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {inst.name}
+                              {inst.code ? ` (${inst.code})` : ""}
+                            </p>
                           )}
-                        </td>
-                      </tr>
+                        </TableCell>
+                        <TableCell>
+                          {saving ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>

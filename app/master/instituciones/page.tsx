@@ -6,6 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Building2, ChevronRight, AlertCircle, X, Plus, Pencil } from "lucide-react";
 
 type Institution = {
   id: string;
@@ -106,35 +116,60 @@ export default function MasterInstitucionesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-display font-bold">Instituciones</h1>
-        <p className="text-muted-foreground mt-1">
-          Gestiona todas las instituciones. Crea, edita y luego entra a cada una para gestionar alumnos, salones y profesores.
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Link href="/master" className="hover:text-foreground transition-colors">
+            Inicio
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <span className="text-foreground font-medium">Instituciones</span>
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Instituciones
+        </h1>
+        <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+          Gestiona todas las instituciones. Crea, edita y entra a cada una para gestionar alumnos, salones y profesores.
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" asChild>
             <Link href="/master/gestion">Gestión alumnos y salones</Link>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" size="sm" asChild>
             <Link href="/master/gestion/evaluaciones">Evaluaciones publicadas</Link>
           </Button>
         </div>
       </div>
 
       {error && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          {error}
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button onClick={() => setError(null)} className="text-destructive/60 hover:text-destructive" aria-label="Cerrar">
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
-      <Card>
+      <Card className="border border-border shadow-sm">
         <CardHeader>
-          <CardTitle>Lista de instituciones</CardTitle>
-          <CardDescription>Agrega instituciones y edita nombre o código. Luego usa &quot;Gestionar&quot; para ver alumnos, salones y profesores de esa institución.</CardDescription>
-          <div className="pt-2">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <Building2 className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle>Lista de instituciones</CardTitle>
+                <CardDescription>
+                  Agrega instituciones y edita nombre o código. Usa &quot;Gestionar&quot; para alumnos, salones y profesores.
+                </CardDescription>
+              </div>
+            </div>
             {!showForm && !editingId && (
-              <Button onClick={() => setShowForm(true)}>Agregar institución</Button>
+              <Button onClick={() => setShowForm(true)} size="sm" className="gap-2 shrink-0">
+                <Plus className="h-4 w-4" />
+                Agregar institución
+              </Button>
             )}
           </div>
         </CardHeader>
@@ -142,7 +177,7 @@ export default function MasterInstitucionesPage() {
           {(showForm || editingId) && (
             <form
               onSubmit={editingId ? handleUpdate : handleCreate}
-              className="rounded-lg border bg-muted/30 p-4 space-y-3"
+              className="rounded-lg border border-border bg-muted/30 p-4 space-y-3"
             >
               <div className="grid gap-2">
                 <Label htmlFor="inst_name">Nombre</Label>
@@ -175,38 +210,57 @@ export default function MasterInstitucionesPage() {
           )}
 
           {loading ? (
-            <p className="text-sm text-muted-foreground">Cargando…</p>
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
           ) : institutions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No hay instituciones. Crea la primera arriba.</p>
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="rounded-full bg-muted p-4 mb-4">
+                <Building2 className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium text-foreground">No hay instituciones</p>
+              <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                Crea la primera institución con el botón &quot;Agregar institución&quot;.
+              </p>
+              <Button onClick={() => setShowForm(true)} variant="outline" className="mt-4" size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Agregar institución
+              </Button>
+            </div>
           ) : (
-            <div className="rounded-md border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="text-left p-3 font-medium">Nombre</th>
-                    <th className="text-left p-3 font-medium">Código</th>
-                    <th className="text-left p-3 font-medium">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="rounded-lg border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {institutions.map((inst) => (
-                    <tr key={inst.id} className="border-b last:border-0">
-                      <td className="p-3">{inst.name}</td>
-                      <td className="p-3 font-mono text-muted-foreground">{inst.code ?? "—"}</td>
-                      <td className="p-3 flex flex-wrap gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(inst)}>
-                          Editar
-                        </Button>
-                        <Button size="sm" asChild>
-                          <Link href={`/master/gestion?institution_id=${inst.id}`}>
-                            Gestionar
-                          </Link>
-                        </Button>
-                      </td>
-                    </tr>
+                    <TableRow key={inst.id}>
+                      <TableCell className="font-medium">{inst.name}</TableCell>
+                      <TableCell className="font-mono text-muted-foreground text-sm">{inst.code ?? "—"}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(inst)} className="gap-1">
+                            <Pencil className="h-3.5 w-3.5" />
+                            Editar
+                          </Button>
+                          <Button size="sm" asChild>
+                            <Link href={`/master/gestion?institution_id=${inst.id}`}>
+                              Gestionar
+                            </Link>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
