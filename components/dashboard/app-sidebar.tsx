@@ -9,10 +9,16 @@ import {
   Settings,
   LogOut,
   ChevronDown,
-  Building,
   BookOpen,
   Moon,
   Sun,
+  Home,
+  Building,
+  Users,
+  ClipboardList,
+  FileCheck,
+  Bell,
+  FileText,
 } from "lucide-react";
 
 import {
@@ -26,16 +32,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,18 +47,22 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const DEFAULT_ICON = LayoutDashboard;
 const LABEL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  "Generar (IA)": BookOpen,
+  Inicio: Home,
+  Instituciones: Building,
+  Usuarios: Users,
+  "Gestión alumnos y salones": ClipboardList,
+  "Evaluaciones publicadas": FileCheck,
   Resultados: BarChart3,
+  Dashboard: LayoutDashboard,
+  "Generar (IA)": BookOpen,
+  Plantillas: FileText,
   Gestión: Settings,
+  Notificaciones: Bell,
 };
 
 function getIconForLabel(label: string) {
   return LABEL_ICONS[label] ?? DEFAULT_ICON;
 }
-
-const CONFIG_MASTER: { title: string; url: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { title: "Instituciones", url: "/master/instituciones", icon: Building },
-];
 
 export type AppSidebarProps = {
   navMain: NavItem[];
@@ -82,7 +83,6 @@ export function AppSidebar({
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const displayName = fullName?.trim() || email || "Usuario";
-  const hasConfig = role === "master" && CONFIG_MASTER.length > 0;
 
   const onSignOut = async () => {
     const supabase = createClient();
@@ -133,46 +133,6 @@ export function AppSidebar({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {hasConfig && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-xs font-medium text-muted-foreground">
-              Configuración
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <Collapsible defaultOpen className="group/collapsible">
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton tooltip="Configuración">
-                        <Settings className="size-4 shrink-0" />
-                        <span>Configuración</span>
-                        <ChevronDown className="ml-auto size-4" />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        {CONFIG_MASTER.map((item) => (
-                          <SidebarMenuSubItem key={item.url}>
-                            <SidebarMenuSubButton
-                              asChild
-                              isActive={pathname === item.url}
-                            >
-                              <Link href={item.url}>
-                                <item.icon className="size-4 shrink-0" />
-                                <span>{item.title}</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
       </SidebarContent>
       <SidebarFooter className="p-3 pt-2">
         <SidebarMenu>

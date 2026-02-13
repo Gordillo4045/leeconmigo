@@ -4,7 +4,29 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Sparkles,
+  Loader2,
+  Save,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  BookOpen,
+} from "lucide-react";
 
 const formSchema = z.object({
   topic: z.string().min(3).max(80),
@@ -243,7 +265,6 @@ export function TextGenerator() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error ?? json?.message ?? `HTTP ${res.status}`);
 
-      // asume que API devuelve { result: <rpc json> } o directo el json
       const payload = (json?.result ?? json) as PublishResult;
       setPublishOk(payload);
     } catch (e: any) {
@@ -257,226 +278,329 @@ export function TextGenerator() {
   const gradeMismatch =
     selectedClassroom ? selectedClassroom.grade_id !== form.grade : false;
 
+  const difficultyConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
+    facil: { label: "Fácil", variant: "default" },
+    medio: { label: "Medio", variant: "secondary" },
+    dificil: { label: "Difícil", variant: "destructive" },
+  };
+
   return (
-    <div className="space-y-8">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Generar texto (IA)</h1>
-        <p className="text-sm text-muted-foreground max-w-xl">
-          Genera un texto para lectura y preguntas de comprensión (JSON estructurado).
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-display font-bold">Generar texto (IA)</h1>
+        <p className="text-muted-foreground mt-1">
+          Genera un texto para lectura y preguntas de comprensión usando inteligencia artificial.
         </p>
       </div>
 
-      <div className="rounded-lg border bg-card p-6 space-y-6">
-        {/* ✅ Selector de salón */}
-        <div className="grid gap-2">
-          <span className="text-sm font-medium">Salón destino (para publicar)</span>
-          <select
-            className="h-10 w-full max-w-xl rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-            value={selectedClassroomId}
-            onChange={(e) => setSelectedClassroomId(e.target.value)}
-            disabled={loadingClassrooms}
-          >
-            <option value="">Selecciona un salón</option>
-            {classrooms.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.grade_id}°)
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-muted-foreground">
-            Solo aparecen salones asignados a ti.
-          </span>
+      {/* Form Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            Configuración de generación
+          </CardTitle>
+          <CardDescription>
+            Completa los campos para generar un texto personalizado con preguntas de comprensión.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Salón destino (para publicar) */}
+          <div className="space-y-2">
+            <Label>Salón destino (para publicar)</Label>
+            <Select
+              value={selectedClassroomId || "none"}
+              onValueChange={(v) => v !== "none" && setSelectedClassroomId(v)}
+              disabled={loadingClassrooms}
+            >
+              <SelectTrigger className="max-w-xl">
+                <SelectValue placeholder="Selecciona un salón" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Selecciona un salón</SelectItem>
+                {classrooms.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name} ({c.grade_id}°)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Solo aparecen salones asignados a ti.
+            </p>
+            {selectedClassroom && gradeMismatch ? (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                El salón seleccionado es de {selectedClassroom.grade_id}° pero el texto está en {form.grade}°. No se permitirá publicar.
+              </div>
+            ) : null}
+          </div>
 
-          {selectedClassroom && gradeMismatch ? (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
-              ⚠ El salón seleccionado es de {selectedClassroom.grade_id}° pero el texto está en {form.grade}°.
-              No se permitirá publicar (y la RPC también lo bloquea).
-            </div>
-          ) : null}
-        </div>
-
-        <div className="grid gap-5 md:grid-cols-2">
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Temática</span>
-            <input
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+          <div className="space-y-2">
+            <Label htmlFor="topic">Temática</Label>
+            <Input
+              id="topic"
               placeholder="Ej. Animales del bosque"
               value={form.topic}
               onChange={(e) => setForm((f) => ({ ...f, topic: e.target.value }))}
             />
-            <span className="text-xs text-muted-foreground">3–80 caracteres</span>
-          </label>
+            <p className="text-xs text-muted-foreground">3–80 caracteres</p>
+          </div>
 
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Grado</span>
-            <select
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-              value={form.grade}
-              onChange={(e) => setForm((f) => ({ ...f, grade: Number(e.target.value) }))}
-            >
-              <option value={1}>1°</option>
-              <option value={2}>2°</option>
-              <option value={3}>3°</option>
-            </select>
-          </label>
+          <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="grade">Grado</Label>
+              <Select
+                value={String(form.grade)}
+                onValueChange={(v) => setForm((f) => ({ ...f, grade: Number(v) }))}
+              >
+                <SelectTrigger id="grade" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1° grado</SelectItem>
+                  <SelectItem value="2">2° grado</SelectItem>
+                  <SelectItem value="3">3° grado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Dificultad</span>
-            <select
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-              value={form.difficulty}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  difficulty: e.target.value as FormState["difficulty"],
-                }))
+            <div className="space-y-2">
+              <Label htmlFor="difficulty">Dificultad</Label>
+              <Select
+                value={form.difficulty}
+                onValueChange={(v) =>
+                  setForm((f) => ({
+                    ...f,
+                    difficulty: v as FormState["difficulty"],
+                  }))
+                }
+              >
+                <SelectTrigger id="difficulty" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="facil">Fácil</SelectItem>
+                  <SelectItem value="medio">Medio</SelectItem>
+                  <SelectItem value="dificil">Difícil</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 sm:col-span-2 md:col-span-1">
+              <Label htmlFor="words">Palabras</Label>
+              <Input
+                id="words"
+                type="number"
+                min={60}
+                max={220}
+                value={form.words}
+                onChange={(e) => setForm((f) => ({ ...f, words: Number(e.target.value) }))}
+              />
+              <p className="text-xs text-muted-foreground">60–220 palabras</p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="include_questions"
+              checked={form.include_questions}
+              onCheckedChange={(checked) =>
+                setForm((f) => ({ ...f, include_questions: checked === true }))
               }
-            >
-              <option value="facil">Fácil</option>
-              <option value="medio">Medio</option>
-              <option value="dificil">Difícil</option>
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Palabras</span>
-            <input
-              type="number"
-              min={60}
-              max={220}
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-              value={form.words}
-              onChange={(e) => setForm((f) => ({ ...f, words: Number(e.target.value) }))}
             />
-            <span className="text-xs text-muted-foreground">60–220</span>
-          </label>
-        </div>
-
-        <label className="flex items-center gap-3 pt-1">
-          <input
-            type="checkbox"
-            checked={form.include_questions}
-            onChange={(e) => setForm((f) => ({ ...f, include_questions: e.target.checked }))}
-          />
-          <span className="text-sm">Incluir preguntas</span>
-        </label>
-
-        {error ? (
-          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
-            {error}
+            <Label htmlFor="include_questions" className="text-sm font-normal cursor-pointer">
+              Incluir preguntas de comprensión
+            </Label>
           </div>
-        ) : null}
 
-        {saveOk ? (
-          <div className="rounded-md border bg-muted/30 p-3 text-sm">
-            ✅ Plantilla guardada
-            <div className="mt-1 font-mono text-xs opacity-80">
-              text_id: {saveOk.text_id}
-              <br />
-              quiz_id: {saveOk.quiz_id}
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{error}</span>
             </div>
+          )}
+
+          {saveOk && (
+            <div className="flex items-center gap-2 rounded-lg border bg-green-500/10 border-green-500/30 px-4 py-3 text-sm text-green-700 dark:text-green-400">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium">Plantilla guardada exitosamente</p>
+                <div className="mt-1 font-mono text-xs opacity-80">
+                  text_id: {saveOk.text_id} • quiz_id: {saveOk.quiz_id}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {publishOk && (
+            <div className="flex items-center gap-2 rounded-lg border bg-primary/10 border-primary/30 px-4 py-3 text-sm text-primary">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium">Evaluación publicada</p>
+                <div className="mt-1 font-mono text-xs opacity-80">
+                  session_id: {publishOk.session_id} • {publishOk.codes?.length ?? 0} códigos generados
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={onGenerate} disabled={!canSubmit}>
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Generar
+                </>
+              )}
+            </Button>
+
+            <Button
+              variant="secondary"
+              onClick={onSaveTemplate}
+              disabled={!data || loading || saving}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Guardar plantilla
+                </>
+              )}
+            </Button>
+
+            <Button variant="outline" onClick={onClear} disabled={loading || saving || publishing}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Limpiar
+            </Button>
+
+            <Button onClick={onPublish} disabled={!canPublish}>
+              {publishing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Publicando...
+                </>
+              ) : (
+                "Publicar evaluación"
+              )}
+            </Button>
           </div>
-        ) : null}
 
-        {publishOk ? (
-          <div className="rounded-md border bg-muted/30 p-3 text-sm">
-            ✅ Evaluación publicada
-            <div className="mt-1 font-mono text-xs opacity-80">
-              session_id: {publishOk.session_id}
-              <br />
-              classroom_id: {publishOk.classroom_id}
-              <br />
-              expires_in_minutes: {publishOk.expires_in_minutes}
-              <br />
-              codes: {publishOk.codes?.length ?? 0}
-            </div>
-          </div>
-        ) : null}
-
-        <div className="flex flex-wrap gap-3 pt-2">
-          <Button onClick={onGenerate} disabled={!canSubmit}>
-            {loading ? "Generando..." : "Generar"}
-          </Button>
-
-          <Button variant="secondary" onClick={onSaveTemplate} disabled={!data || loading || saving}>
-            {saving ? "Guardando..." : "Guardar plantilla"}
-          </Button>
-
-          <Button variant="outline" onClick={onClear} disabled={loading || saving || publishing}>
-            Limpiar
-          </Button>
-
-          <Button onClick={onPublish} disabled={!canPublish}>
-            {publishing ? "Publicando..." : "Publicar evaluación"}
-          </Button>
-        </div>
-
-        {/* ✅ Muestra códigos */}
-        {publishOk?.codes?.length ? (
-          <div className="rounded-lg border p-4 space-y-2">
-            <div className="font-semibold">Códigos generados</div>
-            <div className="text-xs text-muted-foreground">
-              Comparte un código por alumno para entrar a /student/[code].
-            </div>
-            <div className="overflow-auto rounded-md border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40">
-                  <tr className="text-left">
-                    <th className="p-3">student_id</th>
-                    <th className="p-3">attempt_id</th>
-                    <th className="p-3">code</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {publishOk.codes.map((c) => (
-                    <tr key={c.attempt_id} className="border-t">
-                      <td className="p-3 font-mono text-xs">{c.student_id}</td>
-                      <td className="p-3 font-mono text-xs">{c.attempt_id}</td>
-                      <td className="p-3 font-mono text-xs">{c.code}</td>
+          {publishOk?.codes?.length ? (
+            <div className="rounded-lg border p-4 space-y-2">
+              <p className="font-semibold text-sm">Códigos generados</p>
+              <p className="text-xs text-muted-foreground">
+                Comparte un código por alumno para entrar a la evaluación.
+              </p>
+              <div className="overflow-auto rounded-md border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40">
+                    <tr className="text-left">
+                      <th className="p-3">Alumno (id)</th>
+                      <th className="p-3">Código</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      {data ? (
-        <div className="space-y-4">
-          <div className="rounded-lg border p-4 space-y-2">
-            <div className="text-lg font-semibold">{data.title}</div>
-            <div className="text-sm text-muted-foreground">
-              Tema: {data.topic} • Grado: {data.grade} • Dificultad: {data.difficulty} • Palabras:{" "}
-              {data.word_count_estimate}
-            </div>
-            <Separator className="my-3" />
-            <p className="whitespace-pre-wrap leading-relaxed">{data.text}</p>
-          </div>
-
-          {data.questions?.length ? (
-            <div className="rounded-lg border p-4 space-y-3">
-              <div className="font-semibold">Preguntas</div>
-              <div className="space-y-4">
-                {data.questions.map((q, idx) => (
-                  <div key={idx} className="space-y-2">
-                    <div className="text-sm font-medium">
-                      {idx + 1}. {q.q}
-                    </div>
-                    <ul className="grid gap-2 md:grid-cols-2">
-                      {q.options.map((opt, i) => (
-                        <li key={i} className="rounded-md border p-2 text-sm">
-                          {String.fromCharCode(65 + i)}. {opt}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+                  </thead>
+                  <tbody>
+                    {publishOk.codes.map((c) => (
+                      <tr key={c.attempt_id} className="border-t">
+                        <td className="p-3 font-mono text-xs">{c.student_id}</td>
+                        <td className="p-3 font-mono text-xs">{c.code}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           ) : null}
+        </CardContent>
+      </Card>
+
+      {/* Generated Content */}
+      {data && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    {data.title}
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>Tema: {data.topic}</span>
+                      <span>•</span>
+                      <Badge variant="secondary">{data.grade}°</Badge>
+                      <Badge variant={difficultyConfig[data.difficulty]?.variant ?? "outline"}>
+                        {difficultyConfig[data.difficulty]?.label ?? data.difficulty}
+                      </Badge>
+                      <span>•</span>
+                      <span>{data.word_count_estimate} palabras</span>
+                    </div>
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Separator className="my-4" />
+              <div className="prose prose-sm max-w-none">
+                <p className="whitespace-pre-wrap leading-relaxed text-foreground">{data.text}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {data.questions && data.questions.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  Preguntas de comprensión ({data.questions.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {data.questions.map((q, idx) => (
+                    <div key={idx} className="space-y-3">
+                      <div className="flex items-start gap-2">
+                        <Badge variant="outline" className="mt-0.5">
+                          {idx + 1}
+                        </Badge>
+                        <p className="text-sm font-medium flex-1">{q.q}</p>
+                      </div>
+                      <div className="grid gap-2 md:grid-cols-2 ml-8">
+                        {q.options.map((opt, i) => (
+                          <div
+                            key={i}
+                            className={`rounded-md border p-3 text-sm ${i === q.answer_index
+                              ? "bg-primary/10 border-primary/30"
+                              : "bg-muted/30"
+                              }`}
+                          >
+                            <span className="font-medium">{String.fromCharCode(65 + i)}.</span> {opt}
+                            {i === q.answer_index && (
+                              <Badge variant="default" className="ml-2 text-xs">
+                                Correcta
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

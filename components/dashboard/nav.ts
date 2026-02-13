@@ -18,7 +18,7 @@ export function getNav(role: UserRole): NavItem[] {
       { label: "Dashboard", href: "/maestro" },
       { label: "Generar (IA)", href: "/maestro/generar-ia" },
       { label: "Resultados", href: "/maestro/resultados" },
-      { label: "Gestión", href: "/maestro/gestion" },
+      { label: "Plantillas", href: "/maestro/gestion" },
       { label: "Evaluaciones publicadas", href: "/maestro/gestion/evaluaciones" },
     ];
   }

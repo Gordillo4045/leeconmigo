@@ -144,6 +144,9 @@ export function LoginForm({
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.form?.requestSubmit();
+                      }}
                     />
                   </div>
 
@@ -163,6 +166,9 @@ export function LoginForm({
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.form?.requestSubmit();
+                      }}
                     />
                   </div>
 
