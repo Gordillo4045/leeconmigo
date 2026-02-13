@@ -1,110 +1,106 @@
 "use client";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import AdminGestionPage from "@/app/admin/gestion/page";
+import { EvaluationSessionsList } from "@/components/admin/evaluation-sessions-list";
 
-type Institution = {
-  id: string;
-  name: string;
-  code: string | null;
-};
+type Institution = { id: string; name: string; code: string | null };
 
-function MasterGestionContent() {
-  const searchParams = useSearchParams();
-  const institutionIdFromUrl = searchParams.get("institution_id");
+export default function MasterEvaluacionesPage() {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
-  const [loading, setLoading] = useState(!institutionIdFromUrl);
+  const [institutionId, setInstitutionId] = useState<string>("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (institutionIdFromUrl) {
-      setLoading(false);
-      return;
-    }
     let cancelled = false;
+    setLoading(true);
     fetch("/api/master/institutions")
-      .then((res) => res.json())
+      .then((r) => r.json())
       .then((json) => {
-        if (!cancelled) setInstitutions(json.institutions ?? []);
+        if (cancelled) return;
+        const list = (json.institutions ?? []) as Institution[];
+        setInstitutions(list);
+        if (!institutionId && list.length) setInstitutionId(list[0].id);
       })
-      .catch(() => { if (!cancelled) setInstitutions([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [institutionIdFromUrl]);
+      .catch(() => {
+        if (!cancelled) setInstitutions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  if (institutionIdFromUrl) {
-    return (
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/master/gestion">Cambiar institución</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/master/instituciones">Ver todas las instituciones</Link>
-          </Button>
-        </div>
-        <AdminGestionPage institutionId={institutionIdFromUrl} />
-      </div>
-    );
-  }
-
-  if (loading) {
-    return <p className="text-sm text-muted-foreground">Cargando…</p>;
-  }
+  const selectedLabel = useMemo(() => {
+    const i = institutions.find((x) => x.id === institutionId);
+    return i ? `${i.name}${i.code ? ` (${i.code})` : ""}` : "";
+  }, [institutions, institutionId]);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-display font-bold">Gestión por institución</h1>
+        <h1 className="text-2xl font-display font-bold">Evaluaciones publicadas (Master)</h1>
         <p className="text-muted-foreground mt-1">
-          Elige una institución para gestionar sus alumnos, salones y profesores.
+          Primero elige una institución. Luego podrás ver sesiones, cerrar evaluaciones y revisar intentos.
         </p>
-        <div className="mt-3">
+
+        <div className="mt-3 flex flex-wrap gap-2">
           <Button variant="outline" asChild>
-            <Link href="/master/instituciones">Gestionar instituciones</Link>
+            <Link href="/master/instituciones">Instituciones</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href={institutionId ? `/master/gestion?institution_id=${institutionId}` : "/master/gestion"}>
+  Gestión alumnos y salones
+</Link>
+
           </Button>
         </div>
       </div>
 
-      {institutions.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">No hay instituciones. Crea una en el enlace de arriba.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Selecciona una institución</CardTitle>
-            <CardDescription>Haz clic en &quot;Gestionar&quot; para ver alumnos, salones y profesores de esa institución.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {institutions.map((inst) => (
-                <li key={inst.id} className="flex items-center justify-between rounded border p-3">
-                  <span className="font-medium">{inst.name}</span>
-                  <span className="text-muted-foreground text-sm font-mono">{inst.code ?? "—"}</span>
-                  <Button size="sm" asChild>
-                    <Link href={`/master/gestion?institution_id=${inst.id}`}>Gestionar</Link>
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
+      <Card>
+        <CardHeader>
+          <CardTitle>Institución</CardTitle>
+          <CardDescription>Master debe filtrar por institución para listar sesiones.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Cargando instituciones…</p>
+          ) : institutions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No hay instituciones. Crea una desde /master/instituciones.
+            </p>
+          ) : (
+            <>
+              <label className="text-sm font-medium">Selecciona institución</label>
+              <select
+                className="h-9 rounded-md border bg-background px-3 text-sm w-full max-w-xl"
+                value={institutionId}
+                onChange={(e) => setInstitutionId(e.target.value)}
+              >
+                {institutions.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name}
+                    {i.code ? ` (${i.code})` : ""}
+                  </option>
+                ))}
+              </select>
 
-export default function MasterGestionPage() {
-  return (
-    <Suspense fallback={<p className="text-sm text-muted-foreground">Cargando…</p>}>
-      <MasterGestionContent />
-    </Suspense>
+              {selectedLabel ? (
+                <p className="text-xs text-muted-foreground">Seleccionada: {selectedLabel}</p>
+              ) : null}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {institutionId ? (
+        <EvaluationSessionsList basePath="/master" role="admin" institutionId={institutionId} />
+      ) : null}
+    </div>
   );
 }

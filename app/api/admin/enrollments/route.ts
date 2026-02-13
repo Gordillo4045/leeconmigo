@@ -22,16 +22,19 @@ export async function GET(req: Request) {
 
     const admin = createAdminClient();
 
-    if (profile.role === "admin" && profile.institution_id) {
-      const { data: classroom } = await admin
-        .from("classrooms")
-        .select("id, institution_id")
-        .eq("id", classroomId)
-        .is("deleted_at", null)
-        .single();
-      if (!classroom || classroom.institution_id !== profile.institution_id) {
-        return NextResponse.json({ error: "Salón no encontrado o no pertenece a tu institución" }, { status: 404 });
-      }
+    const { data: classroom } = await admin
+      .from("classrooms")
+      .select("id, institution_id")
+      .eq("id", classroomId)
+      .is("deleted_at", null)
+      .single();
+
+    if (!classroom) {
+      return NextResponse.json({ error: "Salón no encontrado" }, { status: 404 });
+    }
+
+    if (profile.role === "admin" && profile.institution_id !== classroom.institution_id) {
+      return NextResponse.json({ error: "No autorizado para este salón" }, { status: 403 });
     }
 
     const { data: enrollments, error } = await admin
@@ -44,14 +47,18 @@ export async function GET(req: Request) {
         students ( id, curp, first_name, last_name )
       `)
       .eq("classroom_id", classroomId)
+      .eq("active", true)
       .is("deleted_at", null)
       .order("enrolled_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: "Error al listar inscripciones", message: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: "Error al listar inscripciones", message: error.message },
+        { status: 500 }
+      );
     }
 
-    const list = (enrollments ?? []).map((e: { id: string; student_id: string; enrolled_at: string; active: boolean; students?: { id: string; curp: string; first_name: string; last_name: string } | null }) => ({
+    const list = (enrollments ?? []).map((e: any) => ({
       id: e.id,
       student_id: e.student_id,
       enrolled_at: e.enrolled_at,
@@ -67,6 +74,7 @@ export async function GET(req: Request) {
     }));
 
     return NextResponse.json({ enrollments: list }, { status: 200 });
+
   } catch (e: unknown) {
     return NextResponse.json(
       { error: "Error de servidor", message: e instanceof Error ? e.message : String(e) },
@@ -74,6 +82,7 @@ export async function GET(req: Request) {
     );
   }
 }
+
 
 export async function POST(req: Request) {
   try {
@@ -89,6 +98,7 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => null);
     const studentId = body?.student_id;
     const classroomId = body?.classroom_id;
+
     if (!studentId || !classroomId) {
       return NextResponse.json({ error: "Faltan student_id y classroom_id" }, { status: 400 });
     }
@@ -107,7 +117,7 @@ export async function POST(req: Request) {
     }
 
     if (profile.role === "admin" && profile.institution_id !== classroom.institution_id) {
-      return NextResponse.json({ error: "No puedes inscribir en un salón de otra institución" }, { status: 403 });
+      return NextResponse.json({ error: "No puedes inscribir en otra institución" }, { status: 403 });
     }
 
     const { data: student } = await admin
@@ -120,10 +130,28 @@ export async function POST(req: Request) {
     if (!student) {
       return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
     }
+
     if (student.institution_id !== classroom.institution_id) {
-      return NextResponse.json({ error: "El alumno no pertenece a la misma institución que el salón" }, { status: 400 });
+      return NextResponse.json({ error: "Alumno y salón no pertenecen a la misma institución" }, { status: 400 });
     }
 
+    // 🔒 BLOQUEO: verificar si ya tiene inscripción activa en ese grado
+    const { data: existing } = await admin
+      .from("student_enrollments")
+      .select("id")
+      .eq("student_id", studentId)
+      .eq("grade_id", classroom.grade_id)
+      .eq("active", true)
+      .is("deleted_at", null);
+
+    if (existing && existing.length > 0) {
+      return NextResponse.json(
+        { error: "El alumno ya está inscrito en un salón de este grado" },
+        { status: 409 }
+      );
+    }
+
+    // ✅ Insertar nueva inscripción
     const { data, error } = await admin
       .from("student_enrollments")
       .insert({
@@ -131,6 +159,7 @@ export async function POST(req: Request) {
         classroom_id: classroomId,
         grade_id: classroom.grade_id,
         active: true,
+        institution_id: classroom.institution_id,
         created_by: user.id,
         updated_by: user.id,
       })
@@ -138,12 +167,74 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
-      if (error.code === "23505") {
-        return NextResponse.json({ error: "El alumno ya está inscrito en este salón o en el mismo grado" }, { status: 409 });
-      }
-      return NextResponse.json({ error: "Error al inscribir", message: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: "Error al inscribir", message: error.message },
+        { status: 500 }
+      );
     }
+
     return NextResponse.json({ enrollment: data }, { status: 201 });
+
+  } catch (e: unknown) {
+    return NextResponse.json(
+      { error: "Error de servidor", message: e instanceof Error ? e.message : String(e) },
+      { status: 500 }
+    );
+  }
+  
+}
+export async function DELETE(req: Request) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+
+    const profile = await getProfileByUserId(supabase, user.id);
+    if (!profile || (profile.role !== "admin" && profile.role !== "master")) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    const url = new URL(req.url);
+    const enrollmentId = url.searchParams.get("id");
+
+    if (!enrollmentId) {
+      return NextResponse.json({ error: "Falta id de inscripción" }, { status: 400 });
+    }
+
+    const admin = createAdminClient();
+
+    const { data: enrollment } = await admin
+      .from("student_enrollments")
+      .select("id, classroom_id, active")
+      .eq("id", enrollmentId)
+      .is("deleted_at", null)
+      .single();
+
+    if (!enrollment) {
+      return NextResponse.json({ error: "Inscripción no encontrada" }, { status: 404 });
+    }
+
+    if (!enrollment.active) {
+      return NextResponse.json({ error: "La inscripción ya está inactiva" }, { status: 400 });
+    }
+
+    const { error } = await admin
+      .from("student_enrollments")
+      .update({
+        active: false,
+        updated_by: user.id,
+      })
+      .eq("id", enrollmentId);
+
+    if (error) {
+      return NextResponse.json(
+        { error: "Error al dar de baja", message: error.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true }, { status: 200 });
+
   } catch (e: unknown) {
     return NextResponse.json(
       { error: "Error de servidor", message: e instanceof Error ? e.message : String(e) },
@@ -151,3 +242,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

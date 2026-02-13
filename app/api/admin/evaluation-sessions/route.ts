@@ -6,10 +6,30 @@ import { getProfileByUserId } from "@/lib/auth/get-profile-server";
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 100;
 
+type SessionRow = {
+  id: string;
+  classroom_id: string;
+  text_id: string | null;
+  status: string;
+  published_at: string;
+  expires_at: string;
+  closed_at: string | null;
+  classrooms: { id: string; name: string; grade_id: number } | null;
+  texts: { id: string; title: string | null } | null;
+};
+
+type AttemptRow = {
+  id: string;
+  session_id: string;
+  status: string;
+};
+
 export async function GET(req: Request) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
     const profile = await getProfileByUserId(supabase, user.id);
@@ -21,7 +41,11 @@ export async function GET(req: Request) {
     const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
     const pageSize = Math.min(
       MAX_PAGE_SIZE,
-      Math.max(1, parseInt(url.searchParams.get("page_size") ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE)
+      Math.max(
+        1,
+        parseInt(url.searchParams.get("page_size") ?? String(DEFAULT_PAGE_SIZE), 10) ||
+          DEFAULT_PAGE_SIZE
+      )
     );
     const status = url.searchParams.get("status") ?? "";
     const classroomId = url.searchParams.get("classroom_id") ?? "";
@@ -60,6 +84,7 @@ export async function GET(req: Request) {
     } else if (profile.role === "master" && institutionIdParam) {
       sessionsQuery = sessionsQuery.eq("institution_id", institutionIdParam);
     }
+
     const nowIso = new Date().toISOString();
     if (status === "open") {
       sessionsQuery = sessionsQuery.eq("status", "open").gt("expires_at", nowIso);
@@ -68,12 +93,16 @@ export async function GET(req: Request) {
     } else if (status === "closed") {
       sessionsQuery = sessionsQuery.eq("status", "closed");
     }
+
     if (classroomId) {
       sessionsQuery = sessionsQuery.eq("classroom_id", classroomId);
     }
 
     const from = (page - 1) * pageSize;
-    const { data: sessions, error: sessionsError, count } = await sessionsQuery.range(from, from + pageSize - 1);
+    const { data: sessions, error: sessionsError, count } = await sessionsQuery.range(
+      from,
+      from + pageSize - 1
+    );
 
     if (sessionsError) {
       return NextResponse.json(
@@ -82,7 +111,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const list = sessions ?? [];
+    const list = ((sessions ?? []) as unknown) as SessionRow[];
     const total = count ?? 0;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -93,7 +122,8 @@ export async function GET(req: Request) {
       );
     }
 
-    const sessionIds = list.map((s: { id: string }) => s.id);
+    const sessionIds = list.map((s) => s.id);
+
     const { data: attempts, error: attemptsError } = await admin
       .from("evaluation_attempts")
       .select("id, session_id, status")
@@ -111,76 +141,71 @@ export async function GET(req: Request) {
       string,
       { total: number; submitted: number; pending: number; expired: number; in_progress: number }
     >();
+
     for (const s of list) {
       bySession.set(s.id, { total: 0, submitted: 0, pending: 0, expired: 0, in_progress: 0 });
     }
-    for (const a of attempts ?? []) {
-      const key = a.session_id as string;
-      const row = bySession.get(key);
+
+    for (const a of ((attempts ?? []) as unknown) as AttemptRow[]) {
+      const row = bySession.get(a.session_id);
       if (!row) continue;
+
       row.total += 1;
+
       if (a.status === "submitted") row.submitted += 1;
-      else if (a.status === "pending" || a.status === "in_progress") {
-        if (a.status === "in_progress") row.in_progress += 1;
-        else row.pending += 1;
-      } else if (a.status === "expired") row.expired += 1;
+      else if (a.status === "in_progress") row.in_progress += 1;
+      else if (a.status === "pending") row.pending += 1;
+      else if (a.status === "expired") row.expired += 1;
     }
 
     const now = new Date();
-    const sessionsPayload = list.map(
-      (s: {
-        id: string;
-        classroom_id: string;
-        status: string;
-        published_at: string;
-        expires_at: string;
-        closed_at: string | null;
-        classrooms?: { id: string; name: string; grade_id: number } | null;
-        texts?: { id: string; title: string | null } | null;
-      }) => {
-        const stats = bySession.get(s.id) ?? {
-          total: 0,
-          submitted: 0,
-          pending: 0,
-          expired: 0,
-          in_progress: 0,
-        };
-        const expiresAt = s.expires_at ? new Date(s.expires_at) : null;
-        const isExpired = expiresAt ? expiresAt <= now : false;
-        const statusEffective = s.status === "open" && isExpired ? "expired" : s.status;
-        let timeLeft: string | null = null;
-        if (expiresAt && statusEffective === "open") {
-          const ms = expiresAt.getTime() - now.getTime();
-          if (ms > 0) {
-            const min = Math.floor(ms / 60000);
-            const h = Math.floor(min / 60);
-            const m = min % 60;
-            timeLeft = h > 0 ? `${h}h ${m}min` : `${m} min`;
-          } else {
-            timeLeft = "Expirada";
-          }
-        } else if (s.closed_at) {
-          timeLeft = "Cerrada";
-        }
 
-        return {
-          id: s.id,
-          classroom_id: s.classroom_id,
-          classroom_name: (s.classrooms as { name: string } | null)?.name ?? "—",
-          grade_id: (s.classrooms as { grade_id: number } | null)?.grade_id ?? null,
-          text_title: (s.texts as { title: string | null } | null)?.title ?? "—",
-          status: statusEffective,
-          published_at: s.published_at,
-          expires_at: s.expires_at,
-          closed_at: s.closed_at,
-          time_left: timeLeft,
-          total_attempts: stats.total,
-          submitted_count: stats.submitted,
-          pending_count: stats.pending + stats.in_progress,
-          expired_count: stats.expired,
-        };
+    const sessionsPayload = list.map((s) => {
+      const stats = bySession.get(s.id) ?? {
+        total: 0,
+        submitted: 0,
+        pending: 0,
+        expired: 0,
+        in_progress: 0,
+      };
+
+      const expiresAt = s.expires_at ? new Date(s.expires_at) : null;
+      const isExpired = expiresAt ? expiresAt <= now : false;
+      const statusEffective = s.status === "open" && isExpired ? "expired" : s.status;
+
+      let timeLeft: string | null = null;
+
+      if (expiresAt && statusEffective === "open") {
+        const ms = expiresAt.getTime() - now.getTime();
+        if (ms > 0) {
+          const min = Math.floor(ms / 60000);
+          const h = Math.floor(min / 60);
+          const m = min % 60;
+          timeLeft = h > 0 ? `${h}h ${m}min` : `${m} min`;
+        } else {
+          timeLeft = "Expirada";
+        }
+      } else if (s.closed_at) {
+        timeLeft = "Cerrada";
       }
-    );
+
+      return {
+        id: s.id,
+        classroom_id: s.classroom_id,
+        classroom_name: s.classrooms?.name ?? "—",
+        grade_id: s.classrooms?.grade_id ?? null,
+        text_title: s.texts?.title ?? "—",
+        status: statusEffective,
+        published_at: s.published_at,
+        expires_at: s.expires_at,
+        closed_at: s.closed_at,
+        time_left: timeLeft,
+        total_attempts: stats.total,
+        submitted_count: stats.submitted,
+        pending_count: stats.pending + stats.in_progress,
+        expired_count: stats.expired,
+      };
+    });
 
     return NextResponse.json(
       {

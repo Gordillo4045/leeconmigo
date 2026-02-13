@@ -226,6 +226,24 @@ export default function AdminGestionPage({ institutionId }: { institutionId?: st
       setAddingEnrollment(false);
     }
   };
+const handleRemoveEnrollment = async (enrollmentId: string) => {
+  if (!confirm("¿Dar de baja esta inscripción?")) return;
+
+  setError(null);
+
+  try {
+    const res = await fetch(`/api/admin/enrollments?id=${enrollmentId}`, {
+      method: "DELETE",
+    });
+
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.error ?? "Error al dar de baja");
+
+    await loadEnrollments();
+  } catch (e) {
+    setError(e instanceof Error ? e.message : "Error");
+  }
+};
 
   const handleAddTeacher = async () => {
     if (!addTeacherProfileId || !selectedClassroomId) return;
@@ -595,15 +613,29 @@ export default function AdminGestionPage({ institutionId }: { institutionId?: st
                   {enrollments.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Nadie inscrito aún.</p>
                   ) : (
-                    <ul className="list-disc list-inside text-sm space-y-1">
-                      {enrollments.map((e) => (
-                        <li key={e.id}>
-                          {e.student
-                            ? `${e.student.last_name} ${e.student.first_name} (${e.student.curp})`
-                            : `Alumno ${e.student_id}`}
-                        </li>
-                      ))}
-                    </ul>
+<ul className="space-y-2">
+  {enrollments.map((e) => (
+    <li
+      key={e.id}
+      className="flex items-center justify-between rounded border px-3 py-2 text-sm"
+    >
+      <span>
+        {e.student
+          ? `${e.student.last_name} ${e.student.first_name} (${e.student.curp})`
+          : `Alumno ${e.student_id}`}
+      </span>
+
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => handleRemoveEnrollment(e.id)}
+      >
+        Dar de baja
+      </Button>
+    </li>
+  ))}
+</ul>
+
                   )}
                 </div>
               )}

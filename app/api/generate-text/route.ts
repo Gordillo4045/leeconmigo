@@ -103,7 +103,7 @@ export async function POST(req: Request) {
       `- Dificultad: ${difficulty}.`,
       `- Grado: ${grade}.`,
       qCount > 0
-        ? `- Genera EXACTAMENTE ${qCount} preguntas de opción múltiple, 4 opciones, 1 correcta, sin ambigüedad.`
+        ? `- Genera EXACTAMENTE ${qCount} preguntas de opción múltiple, 4 opciones, 1 correcta, que 2 respuestas correctas no se repitan en el mismo inciso, sin ambigüedad.`
         : "- No generes preguntas; questions debe ser un arreglo vacío.",
     ].join("\n");
 
