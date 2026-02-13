@@ -24,6 +24,6 @@ export default async function AdminGestionIndex() {
     redirect("/admin");
   }
 
-  // Siempre redirige con su institución
-  redirect(`/admin/gestion/alumnos?institution_id=${profile.institution_id}`);
+  // Siempre redirige a gestión con su institución
+  redirect(`/admin/gestion?institution_id=${profile.institution_id}`);
 }
