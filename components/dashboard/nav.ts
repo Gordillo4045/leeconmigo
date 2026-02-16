@@ -36,9 +36,10 @@ export function getNav(role: UserRole): NavItem[] {
   ];
 
 if (role === "master") {
-  items.splice(1, 0, 
+  items.splice(1, 0,
     { label: "Instituciones", href: "/master/instituciones" },
-    { label: "Usuarios", href: "/master/usuarios" }
+    { label: "Usuarios", href: "/master/usuarios" },
+    { label: "Plantillas", href: "/master/plantillas" },
   );
 }
 

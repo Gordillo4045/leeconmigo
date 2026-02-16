@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
 import {
   BookOpen,
   RefreshCw,
@@ -40,7 +41,8 @@ import {
   GraduationCap,
   TrendingUp,
   CheckCircle2,
-  Eye,
+  Settings,
+  Trash2,
 } from "lucide-react";
 
 type TemplateRow = {
@@ -66,22 +68,16 @@ type PublishResult = {
     student_id: string;
     attempt_id: string;
     code: string;
+    student_name?: string;
   }>;
 };
 
-type PreviewQuestion = {
-  question_id: string;
-  prompt: string;
-  order_index: number;
-  options: Array<{ option_text: string; is_correct: boolean }>;
+type TemplatesListProps = {
+  /** Prefijo para el enlace "Configurar", ej. "/maestro" o "/master". Default: "/maestro" */
+  configurarPrefix?: string;
 };
 
-type PreviewData = {
-  text: { id: string; title: string; topic: string; content: string; grade_id: number; difficulty: string };
-  questions: PreviewQuestion[];
-};
-
-export function TemplatesList() {
+export function TemplatesList({ configurarPrefix = "/maestro" }: TemplatesListProps) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [rows, setRows] = useState<TemplateRow[]>([]);
@@ -98,11 +94,11 @@ export function TemplatesList() {
   const [publishing, setPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<PublishResult | null>(null);
 
-  // Preview texto y preguntas
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
-  const [loadingPreview, setLoadingPreview] = useState(false);
-  const [previewErr, setPreviewErr] = useState<string | null>(null);
+  // Eliminar plantilla
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [rowToDelete, setRowToDelete] = useState<TemplateRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteErr, setDeleteErr] = useState<string | null>(null);
 
   // Filtros
   const [gradeFilter, setGradeFilter] = useState<number | "all">("all");
@@ -130,23 +126,27 @@ export function TemplatesList() {
     loadClassrooms();
   }
 
-  async function onOpenPreview(row: TemplateRow) {
-    setPreviewOpen(true);
-    setPreviewData(null);
-    setPreviewErr(null);
-    setLoadingPreview(true);
+  function openDeleteConfirm(row: TemplateRow) {
+    setRowToDelete(row);
+    setDeleteErr(null);
+    setDeleteOpen(true);
+  }
+
+  async function confirmDelete() {
+    if (!rowToDelete) return;
+    setDeleting(true);
+    setDeleteErr(null);
     try {
-      const res = await fetch(`/api/templates/${encodeURIComponent(row.id)}`);
+      const res = await fetch(`/api/templates/${encodeURIComponent(rowToDelete.id)}`, { method: "DELETE" });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.message ?? json?.error ?? "Error al cargar");
-      setPreviewData({
-        text: json.text,
-        questions: json.questions ?? [],
-      });
+      if (!res.ok) throw new Error(json?.message ?? json?.error ?? "Error al eliminar");
+      setDeleteOpen(false);
+      setRowToDelete(null);
+      await load();
     } catch (e: unknown) {
-      setPreviewErr(e instanceof Error ? e.message : "Error al cargar texto y preguntas");
+      setDeleteErr(e instanceof Error ? e.message : "Error al eliminar plantilla");
     } finally {
-      setLoadingPreview(false);
+      setDeleting(false);
     }
   }
 
@@ -446,12 +446,14 @@ export function TemplatesList() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => onOpenPreview(r)}
+                              asChild
                               className="gap-1.5"
-                              title="Ver texto y preguntas"
+                              title="Configurar evaluación (texto, comprensión, inferencia, vocabulario, secuencias)"
                             >
-                              <Eye className="h-3.5 w-3.5" />
-                              Ver
+                              <Link href={`${configurarPrefix}/configurar/${r.id}`}>
+                                <Settings className="h-3.5 w-3.5" />
+                                Configurar
+                              </Link>
                             </Button>
                             <Button
                               size="sm"
@@ -466,6 +468,16 @@ export function TemplatesList() {
                               }
                             >
                               Publicar
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => openDeleteConfirm(r)}
+                              title="Eliminar plantilla"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Eliminar
                             </Button>
                           </div>
                         </TableCell>
@@ -557,13 +569,16 @@ export function TemplatesList() {
                       {publishResult.codes.map((c) => (
                         <div
                           key={c.attempt_id}
-                          className="rounded border p-2 text-center font-mono text-sm hover:bg-muted/50 transition-colors"
+                          className="rounded border p-2 text-center hover:bg-muted/50 transition-colors"
                         >
+                          <p className="text-sm font-medium text-foreground truncate" title={c.student_name ?? c.student_id}>
+                            {c.student_name ?? c.student_id}
+                          </p>
                           <a
                             href={`/a/${encodeURIComponent(c.code)}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-primary hover:underline"
+                            className="font-mono text-xs text-primary hover:underline"
                             title={`Abrir evaluación (${c.code})`}
                           >
                             {c.code}
@@ -611,74 +626,46 @@ export function TemplatesList() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Ver texto y preguntas */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col">
+      {/* Modal Eliminar plantilla */}
+      <Dialog open={deleteOpen} onOpenChange={(open) => { setDeleteOpen(open); if (!open) { setRowToDelete(null); setDeleteErr(null); } }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Texto y preguntas</DialogTitle>
+            <DialogTitle>Eliminar plantilla</DialogTitle>
             <DialogDescription>
-              {previewData?.text && (
+              {rowToDelete && (
                 <>
-                  {previewData.text.title} • {previewData.text.grade_id}° •{" "}
-                  {difficultyConfig[previewData.text.difficulty]?.label ?? previewData.text.difficulty}
+                  ¿Eliminar &quot;{rowToDelete.title}&quot;? Esta acción no se puede deshacer.
                 </>
               )}
             </DialogDescription>
           </DialogHeader>
-
-          {loadingPreview ? (
-            <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Cargando…
-            </div>
-          ) : previewErr ? (
+          {deleteErr && (
             <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              {previewErr}
+              {deleteErr}
             </div>
-          ) : previewData ? (
-            <div className="flex-1 overflow-y-auto space-y-8 pr-2">
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-3">Texto</h3>
-                <div className="rounded-lg border bg-muted/30 p-5 text-[15px] leading-relaxed whitespace-pre-wrap">
-                  {previewData.text.content || "(Sin contenido)"}
-                </div>
-              </div>
-              {previewData.questions.length > 0 ? (
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-3">
-                    Preguntas ({previewData.questions.length})
-                  </h3>
-                  <ol className="space-y-6 list-none pl-0">
-                    {previewData.questions.map((q, idx) => (
-                      <li key={q.question_id} className="rounded-lg border bg-card p-4 space-y-3">
-                        <p className="font-medium text-foreground text-[15px] leading-snug">
-                          {idx + 1}. {q.prompt}
-                        </p>
-                        <ul className="space-y-2 pl-1">
-                          {q.options.map((opt, i) => (
-                            <li
-                              key={i}
-                              className={`text-[15px] leading-relaxed flex items-start gap-2 py-1 ${opt.is_correct ? "text-green-600 dark:text-green-400 font-medium" : "text-muted-foreground"}`}
-                            >
-                              <span className="flex-1">{opt.option_text}</span>
-                              {opt.is_correct && <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />}
-                            </li>
-                          ))}
-                        </ul>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Esta plantilla no tiene preguntas de quiz.</p>
-              )}
-            </div>
-          ) : null}
-
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPreviewOpen(false)}>
-              Cerrar
+            <Button
+              variant="outline"
+              onClick={() => { setDeleteOpen(false); setRowToDelete(null); setDeleteErr(null); }}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleting || !rowToDelete}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Eliminando…
+                </>
+              ) : (
+                "Eliminar plantilla"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

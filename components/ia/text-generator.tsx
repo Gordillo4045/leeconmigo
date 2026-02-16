@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
+import dynamic from "next/dynamic";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,9 +25,13 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertCircle,
-  FileText,
-  BookOpen,
 } from "lucide-react";
+import type { EvaluationWizardData } from "@/components/evaluation/evaluation-wizard";
+
+const EvaluationWizard = dynamic(
+  () => import("@/components/evaluation/evaluation-wizard").then((m) => m.default),
+  { ssr: false }
+);
 
 const formSchema = z.object({
   topic: z.string().min(3).max(80),
@@ -50,6 +55,13 @@ type Generated = {
     options: [string, string, string, string];
     answer_index: number;
   }>;
+  inference_statements?: Array<{
+    statement: string;
+    context_fragment: string;
+    correct_answer: "verdadero" | "falso" | "indeterminado";
+  }>;
+  vocabulary_pairs?: Array<{ word: string; definition: string }>;
+  sequence_items?: Array<{ text: string; correct_order: number }>;
 };
 
 type Classroom = {
@@ -65,8 +77,52 @@ type PublishResult = {
   quiz_id: string;
   question_count: number;
   expires_in_minutes: number;
-  codes: Array<{ student_id: string; attempt_id: string; code: string }>;
+  codes: Array<{ student_id: string; attempt_id: string; code: string; student_name?: string }>;
 };
+
+function mapGeneratedToWizardData(g: Generated): EvaluationWizardData {
+  const textId = "preview-text";
+  const wordCount = g.text.trim().split(/\s+/).length;
+  return {
+    text: {
+      id: textId,
+      title: g.title,
+      content: g.text,
+      gradeLevel: g.grade,
+      wordCount,
+      estimatedReadingTime: Math.max(60, Math.ceil(wordCount / 60) * 60),
+    },
+    comprehensionQuestions: (g.questions ?? []).map((q, i) => ({
+      id: `preview-q-${i}`,
+      textId,
+      question: q.q,
+      options: [...q.options],
+      correctAnswerIndex: q.answer_index,
+      order: i + 1,
+    })),
+    inferenceStatements: (g.inference_statements ?? []).map((s, i) => ({
+      id: `preview-inf-${i}`,
+      textId,
+      statement: s.statement,
+      contextFragment: s.context_fragment ?? "",
+      correctAnswer: s.correct_answer,
+      order: i + 1,
+    })),
+    vocabularyPairs: (g.vocabulary_pairs ?? []).map((p, i) => ({
+      id: `preview-voc-${i}`,
+      textId,
+      word: p.word,
+      definition: p.definition,
+      order: i + 1,
+    })),
+    sequenceItems: (g.sequence_items ?? []).map((s, i) => ({
+      id: `preview-seq-${i}`,
+      textId,
+      text: s.text,
+      correctOrder: s.correct_order ?? i + 1,
+    })),
+  };
+}
 
 export function TextGenerator() {
   const [form, setForm] = useState<FormState>({
@@ -93,22 +149,23 @@ export function TextGenerator() {
 
   // ✅ nuevo: resultado de publicación (códigos)
   const [publishOk, setPublishOk] = useState<PublishResult | null>(null);
+  const publishResultRef = useRef<HTMLDivElement>(null);
+
 
   const canSubmit = useMemo(() => {
     const parsed = formSchema.safeParse(form);
     return parsed.success && !loading;
   }, [form, loading]);
 
+  // Publicar habilitado cuando hay contenido generado O ya guardado, salón elegido y grado coincide
   const canPublish = useMemo(() => {
-    if (!saveOk) return false;
+    if (!data && !saveOk) return false;
     if (!selectedClassroomId) return false;
     if (publishing || loading || saving) return false;
-
-    // Si tenemos el salón seleccionado, valida grado vs form.grade (texto guardado)
     const c = classrooms.find((x) => x.id === selectedClassroomId);
     if (!c) return false;
     return c.grade_id === form.grade;
-  }, [saveOk, selectedClassroomId, publishing, loading, saving, classrooms, form.grade]);
+  }, [data, saveOk, selectedClassroomId, publishing, loading, saving, classrooms, form.grade]);
 
   const loadClassrooms = async () => {
     setLoadingClassrooms(true);
@@ -221,6 +278,9 @@ export function TextGenerator() {
             words: data.word_count_estimate ?? undefined,
           },
           questions: data.questions ?? [],
+          inference_statements: data.inference_statements ?? [],
+          vocabulary_pairs: data.vocabulary_pairs ?? [],
+          sequence_items: data.sequence_items ?? [],
         }),
       });
 
@@ -243,7 +303,7 @@ export function TextGenerator() {
   };
 
   const onPublish = async () => {
-    if (!saveOk) return;
+    if (!data && !saveOk) return;
     if (!selectedClassroomId) return;
 
     setPublishing(true);
@@ -251,13 +311,52 @@ export function TextGenerator() {
     setPublishOk(null);
 
     try {
+      let textId = saveOk?.text_id;
+      let quizId = saveOk?.quiz_id;
+
+      // Si hay contenido generado pero no guardado, guardar primero
+      if ((!textId || !quizId) && data) {
+        const saveRes = await fetch("/api/save-template", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: data.title,
+            topic: data.topic,
+            difficulty: data.difficulty,
+            grade: data.grade,
+            text: data.text,
+            generation_params: {
+              model: "gpt-4.1-nano",
+              temperature: 0.4,
+              words: data.word_count_estimate ?? undefined,
+            },
+            questions: data.questions ?? [],
+            inference_statements: data.inference_statements ?? [],
+            vocabulary_pairs: data.vocabulary_pairs ?? [],
+            sequence_items: data.sequence_items ?? [],
+          }),
+        });
+        const saveJson = await saveRes.json().catch(() => ({}));
+        if (!saveRes.ok) throw new Error(saveJson?.message ?? saveJson?.error ?? "Error al guardar");
+        const result = saveJson?.result ?? {};
+        textId = result.text_id;
+        quizId = result.quiz_id;
+        if (textId && !quizId) {
+          const tRes = await fetch(`/api/templates/${textId}`);
+          const tJson = await tRes.json().catch(() => ({}));
+          if (tJson?.quiz_id) quizId = tJson.quiz_id;
+        }
+        if (textId) setSaveOk({ text_id: textId, quiz_id: quizId ?? "" });
+        if (!textId || !quizId) throw new Error("No se obtuvo text_id o quiz_id al guardar. Publica desde Configurar.");
+      }
+
       const res = await fetch("/api/maestro/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           classroom_id: selectedClassroomId,
-          text_id: saveOk.text_id,
-          quiz_id: saveOk.quiz_id,
+          text_id: textId,
+          quiz_id: quizId,
           expires_in_minutes: 60,
         }),
       });
@@ -265,10 +364,33 @@ export function TextGenerator() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error ?? json?.message ?? `HTTP ${res.status}`);
 
-      const payload = (json?.result ?? json) as PublishResult;
+      let raw = json?.result ?? json;
+      if (typeof raw === "string") {
+        try {
+          raw = JSON.parse(raw) as PublishResult;
+        } catch {
+          raw = {};
+        }
+      }
+      const rawCodes = Array.isArray((raw as PublishResult)?.codes) ? (raw as PublishResult).codes! : [];
+        const payload: PublishResult = {
+          session_id: (raw as PublishResult)?.session_id ?? "",
+          classroom_id: (raw as PublishResult)?.classroom_id ?? "",
+          text_id: (raw as PublishResult)?.text_id ?? "",
+          quiz_id: (raw as PublishResult)?.quiz_id ?? "",
+          question_count: (raw as PublishResult)?.question_count ?? 0,
+          expires_in_minutes: (raw as PublishResult)?.expires_in_minutes ?? 60,
+          codes: rawCodes.map((c) => ({
+            student_id: c.student_id,
+            attempt_id: c.attempt_id,
+            code: c.code,
+            student_name: (c as { student_name?: string }).student_name,
+          })),
+        };
       setPublishOk(payload);
-    } catch (e: any) {
-      setError(e?.message ?? "Error al publicar evaluación.");
+      setTimeout(() => publishResultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error al publicar evaluación.");
     } finally {
       setPublishing(false);
     }
@@ -432,18 +554,6 @@ export function TextGenerator() {
             </div>
           )}
 
-          {publishOk && (
-            <div className="flex items-center gap-2 rounded-lg border bg-primary/10 border-primary/30 px-4 py-3 text-sm text-primary">
-              <CheckCircle2 className="h-4 w-4 shrink-0" />
-              <div className="flex-1">
-                <p className="font-medium">Evaluación publicada</p>
-                <div className="mt-1 font-mono text-xs opacity-80">
-                  session_id: {publishOk.session_id} • {publishOk.codes?.length ?? 0} códigos generados
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="flex flex-wrap gap-3">
             <Button onClick={onGenerate} disabled={!canSubmit}>
               {loading ? (
@@ -494,111 +604,66 @@ export function TextGenerator() {
             </Button>
           </div>
 
-          {publishOk?.codes?.length ? (
-            <div className="rounded-lg border p-4 space-y-2">
-              <p className="font-semibold text-sm">Códigos generados</p>
-              <p className="text-xs text-muted-foreground">
-                Comparte un código por alumno para entrar a la evaluación.
-              </p>
-              <div className="overflow-auto rounded-md border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/40">
-                    <tr className="text-left">
-                      <th className="p-3">Alumno (id)</th>
-                      <th className="p-3">Código</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {publishOk.codes.map((c) => (
-                      <tr key={c.attempt_id} className="border-t">
-                        <td className="p-3 font-mono text-xs">{c.student_id}</td>
-                        <td className="p-3 font-mono text-xs">{c.code}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {publishOk && (
+            <div ref={publishResultRef} className="scroll-mt-4 space-y-3">
+              <div className="flex items-center gap-2 rounded-lg border bg-primary/10 border-primary/30 px-4 py-3 text-sm text-primary">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-medium">Evaluación publicada</p>
+                  <div className="mt-1 font-mono text-xs opacity-80">
+                    session_id: {publishOk.session_id} • {publishOk.codes?.length ?? 0} códigos generados
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-lg border p-4 space-y-2">
+                <p className="font-semibold text-sm">Códigos generados</p>
+                {publishOk.codes?.length ? (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      Comparte un código por alumno para entrar a la evaluación.
+                    </p>
+                    <div className="overflow-auto rounded-md border">
+                      <table className="w-full text-sm">
+<thead className="bg-muted/40">
+                        <tr className="text-left">
+                          <th className="p-3">Alumno</th>
+                          <th className="p-3">Código</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {publishOk.codes.map((c) => (
+                          <tr key={c.attempt_id} className="border-t">
+                            <td className="p-3 text-sm">{c.student_name ?? c.student_id}</td>
+                            <td className="p-3 font-mono text-xs">{c.code}</td>
+                          </tr>
+                        ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No hay alumnos en el salón seleccionado. Agrega alumnos al salón para que se generen códigos.
+                  </p>
+                )}
               </div>
             </div>
-          ) : null}
+          )}
         </CardContent>
       </Card>
 
-      {/* Generated Content */}
+      {/* Contenido generado: se muestra el wizard como lo verá el alumno */}
       {data && (
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    {data.title}
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span>Tema: {data.topic}</span>
-                      <span>•</span>
-                      <Badge variant="secondary">{data.grade}°</Badge>
-                      <Badge variant={difficultyConfig[data.difficulty]?.variant ?? "outline"}>
-                        {difficultyConfig[data.difficulty]?.label ?? data.difficulty}
-                      </Badge>
-                      <span>•</span>
-                      <span>{data.word_count_estimate} palabras</span>
-                    </div>
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Separator className="my-4" />
-              <div className="prose prose-sm max-w-none">
-                <p className="whitespace-pre-wrap leading-relaxed text-foreground">{data.text}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {data.questions && data.questions.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" />
-                  Preguntas de comprensión ({data.questions.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {data.questions.map((q, idx) => (
-                    <div key={idx} className="space-y-3">
-                      <div className="flex items-start gap-2">
-                        <Badge variant="outline" className="mt-0.5">
-                          {idx + 1}
-                        </Badge>
-                        <p className="text-sm font-medium flex-1">{q.q}</p>
-                      </div>
-                      <div className="grid gap-2 md:grid-cols-2 ml-8">
-                        {q.options.map((opt, i) => (
-                          <div
-                            key={i}
-                            className={`rounded-md border p-3 text-sm ${i === q.answer_index
-                              ? "bg-primary/10 border-primary/30"
-                              : "bg-muted/30"
-                              }`}
-                          >
-                            <span className="font-medium">{String.fromCharCode(65 + i)}.</span> {opt}
-                            {i === q.answer_index && (
-                              <Badge variant="default" className="ml-2 text-xs">
-                                Correcta
-                              </Badge>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Así verá el alumno la evaluación. Usa los botones de abajo para guardar plantilla, publicar o limpiar.
+          </p>
+          <EvaluationWizard
+            data={mapGeneratedToWizardData(data)}
+            onSubmit={() => {}}
+            isSubmitting={false}
+            preview
+          />
         </div>
       )}
     </div>
