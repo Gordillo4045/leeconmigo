@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getProfileByUserId } from "@/lib/auth/get-profile-server";
 
 const bodySchema = z.object({
@@ -51,10 +52,38 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ ok: true, result: data }, { status: 200 });
-  } catch (err: any) {
+    const result = data as {
+      session_id?: string;
+      codes?: Array<{ student_id: string; attempt_id: string; code: string }>;
+    } | null;
+
+    if (result?.codes && Array.isArray(result.codes) && result.codes.length > 0) {
+      const studentIds = [...new Set(result.codes.map((c) => c.student_id))];
+      const admin = createAdminClient();
+      const { data: students } = await admin
+        .from("students")
+        .select("id, first_name, last_name")
+        .in("id", studentIds)
+        .is("deleted_at", null);
+
+      const nameById = new Map<string, string>();
+      for (const s of students ?? []) {
+        const id = s.id as string;
+        const first = (s.first_name as string) ?? "";
+        const last = (s.last_name as string) ?? "";
+        nameById.set(id, [last, first].filter(Boolean).join(", ") || id);
+      }
+
+      result.codes = result.codes.map((c) => ({
+        ...c,
+        student_name: nameById.get(c.student_id) ?? c.student_id,
+      }));
+    }
+
+    return NextResponse.json({ ok: true, result: result ?? data }, { status: 200 });
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: "Server error", message: err?.message ?? String(err) },
+      { error: "Server error", message: err instanceof Error ? err.message : String(err) },
       { status: 500 }
     );
   }

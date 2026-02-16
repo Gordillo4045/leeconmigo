@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getProfileByUserId } from "@/lib/auth/get-profile-server";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -19,14 +20,15 @@ export async function GET(_request: Request, context: RouteContext) {
     }
 
     const profile = await getProfileByUserId(supabase, userId);
-    if (!profile || profile.role !== "maestro") {
+    if (!profile || !["maestro", "master", "admin"].includes(profile.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     const { data: text, error: textError } = await supabase
       .from("texts")
-      .select("id, title, topic, content, grade_id, difficulty")
+      .select("id, title, topic, content, grade_id, difficulty, institution_id")
       .eq("id", textId)
+      .is("deleted_at", null)
       .single();
 
     if (textError || !text) {
@@ -84,8 +86,51 @@ export async function GET(_request: Request, context: RouteContext) {
       }
     }
 
+    const { data: inferenceRows } = await supabase
+      .from("inference_statements")
+      .select("id, statement, context_fragment, correct_answer, order_index")
+      .eq("text_id", textId)
+      .is("deleted_at", null)
+      .order("order_index", { ascending: true });
+
+    const inference_statements = (inferenceRows ?? []).map((r) => ({
+      id: r.id,
+      statement: (r.statement as string) ?? "",
+      context_fragment: (r.context_fragment as string) ?? "",
+      correct_answer: (r.correct_answer as string) ?? "indeterminado",
+      order_index: (r.order_index as number) ?? 0,
+    }));
+
+    const { data: vocabularyRows } = await supabase
+      .from("vocabulary_pairs")
+      .select("id, word, definition, order_index")
+      .eq("text_id", textId)
+      .is("deleted_at", null)
+      .order("order_index", { ascending: true });
+
+    const vocabulary_pairs = (vocabularyRows ?? []).map((r) => ({
+      id: r.id,
+      word: (r.word as string) ?? "",
+      definition: (r.definition as string) ?? "",
+      order_index: (r.order_index as number) ?? 0,
+    }));
+
+    const { data: sequenceRows } = await supabase
+      .from("sequence_items")
+      .select("id, text, correct_order")
+      .eq("text_id", textId)
+      .is("deleted_at", null)
+      .order("correct_order", { ascending: true });
+
+    const sequence_items = (sequenceRows ?? []).map((r) => ({
+      id: r.id,
+      text: (r.text as string) ?? "",
+      correct_order: (r.correct_order as number) ?? 0,
+    }));
+
     return NextResponse.json({
       ok: true,
+      quiz_id: quizId,
       text: {
         id: text.id,
         title: (text.title as string) ?? "",
@@ -95,7 +140,69 @@ export async function GET(_request: Request, context: RouteContext) {
         difficulty: (text.difficulty as string) ?? "",
       },
       questions,
+      inference_statements,
+      vocabulary_pairs,
+      sequence_items,
     });
+  } catch (err: unknown) {
+    return NextResponse.json(
+      { error: "Server error", message: err instanceof Error ? err.message : String(err) },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  try {
+    const { id: textId } = await context.params;
+    if (!textId) {
+      return NextResponse.json({ error: "Missing text id" }, { status: 400 });
+    }
+
+    const supabase = await createClient();
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const userId = claimsData?.claims?.sub;
+    if (!userId) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const profile = await getProfileByUserId(supabase, userId);
+    if (!profile || !["maestro", "master", "admin"].includes(profile.role)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const { data: text, error: fetchErr } = await supabase
+      .from("texts")
+      .select("id, institution_id")
+      .eq("id", textId)
+      .single();
+
+    if (fetchErr || !text) {
+      return NextResponse.json(
+        { error: "Text not found", message: "Plantilla no encontrada" },
+        { status: 404 }
+      );
+    }
+
+    if (profile.role !== "master" && profile.institution_id !== text.institution_id) {
+      return NextResponse.json({ error: "No puedes eliminar una plantilla de otra institución" }, { status: 403 });
+    }
+
+    // Maestros no tienen UPDATE en texts por RLS; usamos admin para el soft-delete tras validar arriba
+    const admin = createAdminClient();
+    const { error: updateErr } = await admin
+      .from("texts")
+      .update({ deleted_at: new Date().toISOString(), updated_by: userId })
+      .eq("id", textId);
+
+    if (updateErr) {
+      return NextResponse.json(
+        { error: "Update failed", message: updateErr.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ ok: true, message: "Plantilla eliminada" }, { status: 200 });
   } catch (err: unknown) {
     return NextResponse.json(
       { error: "Server error", message: err instanceof Error ? err.message : String(err) },

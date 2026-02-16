@@ -103,7 +103,7 @@ export async function POST(req: Request) {
     }
 
     const textId = session.text_id as string;
-    const quizId = session.quiz_id as string;
+    const quizId = session.quiz_id as string | null;
 
     const { data: text, error: textError } = await admin
       .from("texts")
@@ -118,40 +118,86 @@ export async function POST(req: Request) {
       );
     }
 
-    const { data: questions, error: questionsError } = await admin
-      .from("quiz_questions")
-      .select("id, prompt, order_index")
-      .eq("quiz_id", quizId)
-      .order("order_index", { ascending: true });
+    let questionsPayload: Array<{ question_id: string; q: string; options: Array<{ option_id: string; text: string }> }> = [];
 
-    if (questionsError) {
-      return NextResponse.json(
-        { error: "Questions error", message: questionsError.message },
-        { status: 500 }
-      );
+    if (quizId) {
+      const { data: questions, error: questionsError } = await admin
+        .from("quiz_questions")
+        .select("id, prompt, order_index")
+        .eq("quiz_id", quizId)
+        .order("order_index", { ascending: true });
+
+      if (questionsError) {
+        return NextResponse.json(
+          { error: "Questions error", message: questionsError.message },
+          { status: 500 }
+        );
+      }
+
+      const questionIds = (questions ?? []).map((q) => q.id);
+      const { data: options } = await admin
+        .from("quiz_options")
+        .select("id, question_id, option_text, order_index")
+        .in("question_id", questionIds)
+        .order("order_index", { ascending: true });
+
+      const optionsByQuestion = new Map<string, Array<{ option_id: string; text: string }>>();
+      for (const o of options ?? []) {
+        const qId = o.question_id as string;
+        if (!optionsByQuestion.has(qId)) optionsByQuestion.set(qId, []);
+        optionsByQuestion.get(qId)!.push({
+          option_id: o.id,
+          text: (o.option_text as string) ?? "",
+        });
+      }
+
+      questionsPayload = (questions ?? []).map((q) => ({
+        question_id: q.id,
+        q: (q.prompt as string) ?? "",
+        options: optionsByQuestion.get(q.id) ?? [],
+      }));
     }
 
-    const questionIds = (questions ?? []).map((q) => q.id);
-    const { data: options } = await admin
-      .from("quiz_options")
-      .select("id, question_id, option_text, order_index")
-      .in("question_id", questionIds)
+    const { data: inferenceRows } = await admin
+      .from("inference_statements")
+      .select("id, statement, context_fragment, correct_answer, order_index")
+      .eq("text_id", textId)
+      .is("deleted_at", null)
       .order("order_index", { ascending: true });
 
-    const optionsByQuestion = new Map<string, Array<{ option_id: string; text: string }>>();
-    for (const o of options ?? []) {
-      const qId = o.question_id as string;
-      if (!optionsByQuestion.has(qId)) optionsByQuestion.set(qId, []);
-      optionsByQuestion.get(qId)!.push({
-        option_id: o.id,
-        text: (o.option_text as string) ?? "",
-      });
-    }
+    const inference_statements = (inferenceRows ?? []).map((r) => ({
+      id: r.id,
+      statement: (r.statement as string) ?? "",
+      context_fragment: (r.context_fragment as string) ?? "",
+      correct_answer: (r.correct_answer as string) ?? "indeterminado",
+      order: (r.order_index as number) ?? 0,
+    }));
 
-    const questionsPayload = (questions ?? []).map((q) => ({
-      question_id: q.id,
-      q: (q.prompt as string) ?? "",
-      options: optionsByQuestion.get(q.id) ?? [],
+    const { data: vocabularyRows } = await admin
+      .from("vocabulary_pairs")
+      .select("id, word, definition, order_index")
+      .eq("text_id", textId)
+      .is("deleted_at", null)
+      .order("order_index", { ascending: true });
+
+    const vocabulary_pairs = (vocabularyRows ?? []).map((r) => ({
+      id: r.id,
+      word: (r.word as string) ?? "",
+      definition: (r.definition as string) ?? "",
+      order: (r.order_index as number) ?? 0,
+    }));
+
+    const { data: sequenceRows } = await admin
+      .from("sequence_items")
+      .select("id, text, correct_order")
+      .eq("text_id", textId)
+      .is("deleted_at", null)
+      .order("correct_order", { ascending: true });
+
+    const sequence_items = (sequenceRows ?? []).map((r) => ({
+      id: r.id,
+      text: (r.text as string) ?? "",
+      correct_order: (r.correct_order as number) ?? 0,
     }));
 
     const result = {
@@ -166,6 +212,9 @@ export async function POST(req: Request) {
         content: (text.content as string) ?? "",
       },
       questions: questionsPayload,
+      inference_statements,
+      vocabulary_pairs,
+      sequence_items,
     };
 
     return NextResponse.json(

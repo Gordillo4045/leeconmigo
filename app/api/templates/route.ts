@@ -18,44 +18,54 @@ export async function GET() {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    // Solo maestro debe llegar aquí; otros roles no usan este endpoint hoy.
-    if (profile.role !== "maestro") {
+    if (!["maestro", "admin", "master"].includes(profile.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // 1) Obtener los grados de los salones donde el maestro está asignado
-    const { data: ctRows, error: ctError } = await supabase
-      .from("classroom_teachers")
-      .select("classroom_id, classrooms!inner(grade_id)")
-      .eq("teacher_profile_id", profile.id);
+    let allowedGrades: number[];
+    let institutionFilter: string | null = null;
 
-    if (ctError) {
-      return NextResponse.json(
-        { error: "DB error", message: ctError.message },
-        { status: 500 },
-      );
+    if (profile.role === "master") {
+      const url = new URL(req.url);
+      const instId = url.searchParams.get("institution_id");
+      allowedGrades = [1, 2, 3];
+      if (instId) institutionFilter = instId;
+    } else if (profile.role === "admin") {
+      allowedGrades = [1, 2, 3];
+      institutionFilter = profile.institution_id ?? null;
+    } else {
+      const { data: ctRows, error: ctError } = await supabase
+        .from("classroom_teachers")
+        .select("classroom_id, classrooms!inner(grade_id)")
+        .eq("teacher_profile_id", profile.id);
+
+      if (ctError) {
+        return NextResponse.json(
+          { error: "DB error", message: ctError.message },
+          { status: 500 },
+        );
+      }
+
+      allowedGrades = Array.from(
+        new Set(
+          (ctRows ?? [])
+            .map((row: any) => row.classrooms?.grade_id)
+            .filter((g: any) => typeof g === "number"),
+        ),
+      ) as number[];
+
+      if (!allowedGrades.length) {
+        return NextResponse.json({
+          ok: true,
+          templates: [],
+          message: "No tienes salones asignados. Contacta al administrador de tu institución para que te asigne a un salón.",
+          hasClassrooms: false,
+        }, { status: 200 });
+      }
+      institutionFilter = profile.institution_id ?? null;
     }
 
-    const allowedGrades = Array.from(
-      new Set(
-        (ctRows ?? [])
-          .map((row: any) => row.classrooms?.grade_id)
-          .filter((g: any) => typeof g === "number"),
-      ),
-    ) as number[];
-
-    // Si el maestro no tiene grados asociados vía salones, devolver información útil
-    if (!allowedGrades.length) {
-      return NextResponse.json({
-        ok: true,
-        templates: [],
-        message: "No tienes salones asignados. Contacta al administrador de tu institución para que te asigne a un salón.",
-        hasClassrooms: false,
-      }, { status: 200 });
-    }
-
-    // 2) Listado de textos SOLO para los grados donde el maestro tiene salón
-    const { data, error } = await supabase
+    let query = supabase
       .from("texts")
       .select(
         `
@@ -65,6 +75,7 @@ export async function GET() {
         difficulty,
         grade_id,
         created_at,
+        institution_id,
         quizzes (
           id,
           question_count
@@ -72,7 +83,14 @@ export async function GET() {
       `,
       )
       .in("grade_id", allowedGrades)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false });
+
+    if (institutionFilter) {
+      query = query.eq("institution_id", institutionFilter);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return NextResponse.json(
