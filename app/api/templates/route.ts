@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getProfileByUserId } from "@/lib/auth/get-profile-server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createClient();
 
@@ -26,7 +26,7 @@ export async function GET() {
     let institutionFilter: string | null = null;
 
     if (profile.role === "master") {
-      const url = new URL(req.url);
+      const url = new URL(request.url);
       const instId = url.searchParams.get("institution_id");
       allowedGrades = [1, 2, 3];
       if (instId) institutionFilter = instId;
