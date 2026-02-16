@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { StudentEvaluationWizard } from "./student-evaluation-wizard";
 
 type OpenAttempt = {
   attempt_id: string;
@@ -20,6 +21,9 @@ type OpenAttempt = {
     q: string;
     options: Array<{ option_id: string; text: string }>;
   }>;
+  inference_statements?: Array<{ id: string; statement: string; context_fragment: string; correct_answer: string; order: number }>;
+  vocabulary_pairs?: Array<{ id: string; word: string; definition: string; order: number }>;
+  sequence_items?: Array<{ id: string; text: string; correct_order: number }>;
 };
 
 type SubmitResult = {
@@ -156,6 +160,51 @@ export default function StudentAttemptClient({ code }: { code: string }) {
     if (!payload) return false;
     return payload.questions.every((q) => !!answers[q.question_id]);
   }, [payload, answers]);
+
+  const useFullWizard = useMemo(
+    () =>
+      !!payload &&
+      ((payload.inference_statements?.length ?? 0) > 0 ||
+        (payload.vocabulary_pairs?.length ?? 0) > 0 ||
+        (payload.sequence_items?.length ?? 0) > 0),
+    [payload]
+  );
+
+  if (payload && useFullWizard) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        {phase === "loading" ? (
+          <div className="py-8 text-center text-muted-foreground">Cargando evaluación…</div>
+        ) : phase === "error" ? (
+          <div className="mx-auto max-w-3xl p-4 space-y-3">
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">{err ?? "Error"}</div>
+            <Button onClick={openAttempt}>Reintentar</Button>
+          </div>
+        ) : phase === "done" ? (
+          <div className="mx-auto max-w-3xl p-4 space-y-4">
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="font-semibold">Listo ✅</div>
+              {submitResult ? (
+                <div className="rounded-md border p-3 text-sm space-y-1">
+                  <div>✅ Puntaje: <b>{submitResult.score_percent}%</b></div>
+                  <div>Correctas: {submitResult.correct_count} / {submitResult.total_questions}</div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <StudentEvaluationWizard
+            payload={payload}
+            onSubmitted={(r) => {
+              setSubmitResult(r ?? null);
+              setPhase("done");
+            }}
+            onError={setErr}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
