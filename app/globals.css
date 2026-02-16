@@ -44,6 +44,14 @@
     --radius: 0.5rem;
     --shadow-playful: 0 4px 14px -3px hsl(var(--primary) / 0.25);
     --shadow-card: 0 2px 10px -2px hsl(var(--foreground) / 0.08);
+    --shadow-button: 0 2px 8px -1px hsl(var(--primary) / 0.35);
+    /* Wizard steps (evaluación) */
+    --step-lectura: 201 96% 45%;
+    --step-comprension: 262 83% 58%;
+    --step-inferencia: 280 70% 55%;
+    --step-vocabulario: 152 69% 45%;
+    --step-secuencias: 36 100% 50%;
+    --step-resultados: 340 82% 52%;
   }
   .dark {
     --background: 0 0% 3.9%;
@@ -71,6 +79,13 @@
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
     --ring: 262 83% 58%;
+    --shadow-button: 0 2px 12px -1px hsl(var(--primary) / 0.4);
+    --step-lectura: 201 96% 50%;
+    --step-comprension: 262 83% 62%;
+    --step-inferencia: 280 70% 60%;
+    --step-vocabulario: 152 69% 48%;
+    --step-secuencias: 36 100% 55%;
+    --step-resultados: 340 82% 55%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -119,8 +134,22 @@
 .shadow-card {
   box-shadow: var(--shadow-card);
 }
+.shadow-button {
+  box-shadow: var(--shadow-button);
+}
 .font-display {
   font-family: var(--font-display);
+}
+
+/* Wizard de evaluación: fondos que respetan modo oscuro */
+.gradient-sky {
+  background: linear-gradient(180deg, hsl(201 96% 97%) 0%, hsl(262 83% 97%) 50%, hsl(280 70% 97%) 100%);
+}
+.dark .gradient-sky {
+  background: linear-gradient(180deg, hsl(201 96% 6%) 0%, hsl(262 83% 8%) 50%, hsl(280 70% 7%) 100%);
+}
+.gradient-fun {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
 }
 
 :root {

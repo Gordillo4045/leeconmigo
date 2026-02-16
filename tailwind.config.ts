@@ -67,6 +67,14 @@ export default {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
+        step: {
+          lectura: "hsl(var(--step-lectura))",
+          comprension: "hsl(var(--step-comprension))",
+          inferencia: "hsl(var(--step-inferencia))",
+          vocabulario: "hsl(var(--step-vocabulario))",
+          secuencias: "hsl(var(--step-secuencias))",
+          resultados: "hsl(var(--step-resultados))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -76,6 +84,7 @@ export default {
       boxShadow: {
         playful: "var(--shadow-playful)",
         card: "var(--shadow-card)",
+        button: "var(--shadow-button)",
       },
       keyframes: {
         "bounce-soft": {
