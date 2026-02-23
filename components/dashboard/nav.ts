@@ -20,6 +20,7 @@ export function getNav(role: UserRole): NavItem[] {
       { label: "Resultados", href: "/maestro/resultados" },
       { label: "Plantillas", href: "/maestro/gestion" },
       { label: "Evaluaciones publicadas", href: "/maestro/gestion/evaluaciones" },
+      { label: "Tutores", href: "/maestro/tutores" },
     ];
   }
 

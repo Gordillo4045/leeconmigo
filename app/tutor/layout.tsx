@@ -2,10 +2,8 @@ import { ReactNode, Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getProfileByUserId } from "@/lib/auth/get-profile-server";
-import { getNav } from "@/components/dashboard/nav";
-import { SidebarLayout } from "@/components/dashboard/sidebar-layout";
 
-async function TutorLayoutGuard({ children }: { children: ReactNode }) {
+async function TutorAuthGuard({ children }: { children: ReactNode }) {
   const supabase = await createClient();
 
   const { data } = await supabase.auth.getClaims();
@@ -19,36 +17,13 @@ async function TutorLayoutGuard({ children }: { children: ReactNode }) {
     redirect("/unauthorized");
   }
 
-  const nav = getNav(profile.role);
-
-  const avatarUrl =
-    claims?.user_metadata?.avatar_url ??
-    claims?.user_metadata?.picture ??
-    claims?.avatar_url ??
-    claims?.picture ??
-    null;
-
-  return (
-    <SidebarLayout
-      nav={nav}
-      role={profile.role}
-      email={profile.email ?? ""}
-      fullName={profile.full_name}
-      avatarUrl={avatarUrl}
-    >
-      {children}
-    </SidebarLayout>
-  );
+  return <>{children}</>;
 }
 
-export default function TutorLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export default function TutorLayout({ children }: { children: ReactNode }) {
   return (
     <Suspense fallback={null}>
-      <TutorLayoutGuard>{children}</TutorLayoutGuard>
+      <TutorAuthGuard>{children}</TutorAuthGuard>
     </Suspense>
   );
 }

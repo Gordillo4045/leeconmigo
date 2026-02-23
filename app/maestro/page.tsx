@@ -19,6 +19,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { StudentDetailModal, type MaestroDashboardStudent } from "../../components/maestro/student-detail-modal";
+import { ResultadosSection } from "../../components/maestro/resultados-section";
 
 type RiskLevel = "low" | "medium" | "high";
 
@@ -155,6 +156,9 @@ export default function TeacherPage() {
             description="Alumnos con al menos una evaluación enviada"
           />
         </div>
+
+        {/* Resultados Section */}
+        <ResultadosSection />
 
         {/* Alerts Section */}
         {studentsAtRisk > 0 && (

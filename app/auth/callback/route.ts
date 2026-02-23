@@ -31,6 +31,16 @@ export async function GET(request: Request) {
   const profile = await getProfileByUserId(supabase, user.id);
   const role = profile?.role;
   if (role === "tutor") {
+    // Check if tutor has completed onboarding (child_name set)
+    const admin = (await import("@/lib/supabase/admin")).createAdminClient();
+    const { data: tutorProfile } = await admin
+      .from("profiles")
+      .select("child_name")
+      .eq("id", user.id)
+      .single();
+    if (!tutorProfile?.child_name) {
+      return NextResponse.redirect(new URL("/tutor/onboarding", url.origin));
+    }
     return NextResponse.redirect(new URL("/tutor", url.origin));
   }
   if (role === "maestro") {
