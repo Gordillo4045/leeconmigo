@@ -33,6 +33,50 @@ type ApiResponse = {
   availableTutors: AvailableTutor[];
 };
 
+function TutoresTable({
+  tutores,
+  assigning,
+  onAssign,
+}: {
+  tutores: AvailableTutor[];
+  assigning: string | null;
+  onAssign: (id: string) => void;
+}) {
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b text-xs text-muted-foreground">
+          <th className="pb-2 text-left font-medium">Tutor</th>
+          <th className="pb-2 text-left font-medium">Hijo/a declarado</th>
+          <th className="pb-2 text-left font-medium">Grado</th>
+          <th />
+        </tr>
+      </thead>
+      <tbody>
+        {tutores.map((t) => (
+          <tr key={t.id} className="border-b last:border-0">
+            <td className="py-3 pr-4">
+              <p className="font-medium text-foreground">{t.full_name}</p>
+              <p className="text-xs text-muted-foreground">{t.email}</p>
+            </td>
+            <td className="py-3 pr-4 text-foreground">
+              {t.child_name ?? <span className="text-muted-foreground">—</span>}
+            </td>
+            <td className="py-3 pr-4 text-foreground">
+              {t.child_grade ? `${t.child_grade}°` : <span className="text-muted-foreground">—</span>}
+            </td>
+            <td className="py-3 text-right">
+              <Button size="sm" onClick={() => onAssign(t.id)} disabled={assigning === t.id}>
+                {assigning === t.id ? "Asignando…" : "Asignar"}
+              </Button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export function TutoresManager() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -106,8 +150,15 @@ export function TutoresManager() {
     (modalStudent?.assignedTutors ?? []).map((at) => at.tutorProfileId),
   );
 
-  const filteredTutors = availableTutors.filter((t) => {
-    if (assignedTutorIds.has(t.id)) return false;
+  const studentNameLower = (modalStudent?.name ?? "").toLowerCase();
+
+  function matchesStudent(t: AvailableTutor): boolean {
+    if (!t.child_name || !studentNameLower) return false;
+    const cn = t.child_name.toLowerCase();
+    return cn.includes(studentNameLower) || studentNameLower.includes(cn);
+  }
+
+  function matchesSearch(t: AvailableTutor): boolean {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
@@ -115,7 +166,10 @@ export function TutoresManager() {
       t.email.toLowerCase().includes(q) ||
       (t.child_name?.toLowerCase().includes(q) ?? false)
     );
-  });
+  }
+
+  const availableUnassigned = availableTutors.filter((t) => !assignedTutorIds.has(t.id));
+  const tutoresCandidatos = availableUnassigned.filter((t) => matchesStudent(t) && matchesSearch(t));
 
   return (
     <div className="space-y-6">
@@ -246,52 +300,14 @@ export function TutoresManager() {
               </div>
 
               <div className="max-h-72 overflow-y-auto">
-                {filteredTutors.length === 0 ? (
+                {tutoresCandidatos.length === 0 ? (
                   <p className="py-6 text-center text-sm text-muted-foreground">
                     {search
                       ? "No hay tutores que coincidan con la búsqueda."
-                      : "No hay tutores disponibles para asignar."}
+                      : "No hay tutores registrados con ese alumno como hijo/a declarado."}
                   </p>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-xs text-muted-foreground">
-                        <th className="pb-2 text-left font-medium">Tutor</th>
-                        <th className="pb-2 text-left font-medium">Hijo/a declarado</th>
-                        <th className="pb-2 text-left font-medium">Grado</th>
-                        <th />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredTutors.map((t) => (
-                        <tr key={t.id} className="border-b last:border-0">
-                          <td className="py-3 pr-4">
-                            <p className="font-medium text-foreground">{t.full_name}</p>
-                            <p className="text-xs text-muted-foreground">{t.email}</p>
-                          </td>
-                          <td className="py-3 pr-4 text-foreground">
-                            {t.child_name ?? <span className="text-muted-foreground">—</span>}
-                          </td>
-                          <td className="py-3 pr-4 text-foreground">
-                            {t.child_grade ? (
-                              `${t.child_grade}°`
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="py-3 text-right">
-                            <Button
-                              size="sm"
-                              onClick={() => handleAssign(t.id)}
-                              disabled={assigning === t.id}
-                            >
-                              {assigning === t.id ? "Asignando…" : "Asignar"}
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <TutoresTable tutores={tutoresCandidatos} assigning={assigning} onAssign={handleAssign} />
                 )}
               </div>
             </div>
