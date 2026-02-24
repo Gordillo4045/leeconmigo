@@ -29,7 +29,7 @@ export async function DELETE(
       .eq("id", teacherId)
       .single();
 
-    if (!teacherProfile || teacherProfile.role !== "maestro") {
+    if (!teacherProfile || (teacherProfile.role !== "maestro" && teacherProfile.role !== "master")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

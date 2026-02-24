@@ -19,7 +19,7 @@ export async function GET(
     if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
     const profile = await getProfileByUserId(supabase, user.id);
-    if (!profile || profile.role !== "maestro") {
+    if (!profile || (profile.role !== "maestro" && profile.role !== "master")) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
