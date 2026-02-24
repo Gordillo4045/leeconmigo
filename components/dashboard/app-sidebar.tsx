@@ -19,6 +19,7 @@ import {
   FileCheck,
   Bell,
   FileText,
+  Shield,
 } from "lucide-react";
 
 import {
@@ -44,6 +45,9 @@ import { createClient } from "@/lib/supabase/client";
 import type { NavItem } from "./nav";
 import type { UserRole } from "@/lib/auth/roles";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MasterAdminPanel } from "./master-admin-panel";
+
+const LS_KEY_PANEL = "masterAdminPanelEnabled";
 
 const DEFAULT_ICON = LayoutDashboard;
 const LABEL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -84,15 +88,37 @@ export function AppSidebar({
   const { theme, setTheme } = useTheme();
   const displayName = fullName?.trim() || email || "Usuario";
 
+  // Panel administrativo — solo para master
+  const [isPanelEnabled, setIsPanelEnabled] = React.useState(true);
+
+  React.useEffect(() => {
+    if (role !== "master") return;
+    const saved = localStorage.getItem(LS_KEY_PANEL);
+    if (saved === "false") setIsPanelEnabled(false);
+  }, [role]);
+
+  function enablePanel() {
+    setIsPanelEnabled(true);
+    localStorage.setItem(LS_KEY_PANEL, "true");
+  }
+
+  function disablePanel() {
+    setIsPanelEnabled(false);
+    localStorage.setItem(LS_KEY_PANEL, "false");
+  }
+
   const onSignOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = "/auth/login";
   };
 
+  const showAdminPanel = role === "master" && isPanelEnabled;
+
   return (
     <Sidebar collapsible="offcanvas" {...props} variant="inset">
       <SidebarHeader className="p-3 pb-2">
+        {/* Branding — siempre visible */}
         <div className="flex items-center gap-2">
           <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground text-sm font-bold">
             LC
@@ -103,37 +129,93 @@ export function AppSidebar({
               Evaluación temprana de lectura
             </span>
           </div>
-
         </div>
+
+        {/* Banner del panel administrativo — solo cuando está activo */}
+        {showAdminPanel && (
+          <div className="mt-2 rounded-md border border-primary/25 bg-primary/10 px-3 py-2">
+            <p className="text-xs font-semibold text-primary leading-tight">
+              Panel administrativo activo
+            </p>
+            <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
+              Funciones organizadas por rol
+            </p>
+            <button
+              type="button"
+              onClick={disablePanel}
+              className="mt-1.5 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+            >
+              Cerrar panel administrativo
+            </button>
+          </div>
+        )}
       </SidebarHeader>
+
       <SidebarContent className="gap-4 px-2">
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-medium text-muted-foreground">
-            Navegación
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navMain.map((item) => {
-                const Icon = getIconForLabel(item.label);
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"))}
-                      tooltip={item.label}
-                    >
-                      <Link href={item.href}>
-                        <Icon className="size-4 shrink-0" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {showAdminPanel ? (
+          /* ── Panel administrativo (Admin + Maestro) ── */
+          <SidebarGroup className="p-0 pt-2">
+            <MasterAdminPanel />
+          </SidebarGroup>
+        ) : (
+          <>
+            {/* Botón para reabrir el panel — solo para master cuando está cerrado */}
+            {role === "master" && (
+              <SidebarGroup>
+                <SidebarGroupLabel className="text-xs font-medium text-muted-foreground">
+                  Administración
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        onClick={enablePanel}
+                        tooltip="Panel administrativo"
+                      >
+                        <Shield className="size-4" />
+                        <span>Panel administrativo</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+
+            {/* Navegación estándar */}
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs font-medium text-muted-foreground">
+                Navegación
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {navMain.map((item) => {
+                    const Icon = getIconForLabel(item.label);
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={
+                            pathname === item.href ||
+                            (item.href !== "/" &&
+                              pathname.startsWith(item.href + "/"))
+                          }
+                          tooltip={item.label}
+                        >
+                          <Link href={item.href}>
+                            <Icon className="size-4 shrink-0" />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
       </SidebarContent>
+
       <SidebarFooter className="p-3 pt-2">
         <SidebarMenu>
           <SidebarMenuItem>
