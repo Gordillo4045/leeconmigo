@@ -15,7 +15,7 @@ async function MaestroLayoutGuard({ children }: { children: ReactNode }) {
   if (!userId) redirect("/auth/login");
 
   const profile = await getProfileByUserId(supabase, userId);
-  if (!profile || profile.role !== "maestro") {
+  if (!profile || (profile.role !== "maestro" && profile.role !== "master")) {
     redirect("/unauthorized");
   }
 
