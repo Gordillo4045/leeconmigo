@@ -28,17 +28,33 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // 2. Get teacher's classrooms
-    const { data: classroomTeachers, error: ctErr } = await admin
-      .from("classroom_teachers")
-      .select("classroom_id")
-      .eq("teacher_profile_id", teacherId);
+    let classroomIds: string[];
 
-    if (ctErr) {
-      return NextResponse.json({ error: ctErr.message }, { status: 500 });
+    if (teacherProfile.role === "master") {
+      // Master: todos los salones del sistema
+      const { data: allRooms, error: roomsErr } = await admin
+        .from("classrooms")
+        .select("id")
+        .is("deleted_at", null);
+
+      if (roomsErr) {
+        return NextResponse.json({ error: roomsErr.message }, { status: 500 });
+      }
+
+      classroomIds = ((allRooms ?? []) as any[]).map((c) => c.id as string).filter(Boolean);
+    } else {
+      // 2. Get teacher's classrooms
+      const { data: classroomTeachers, error: ctErr } = await admin
+        .from("classroom_teachers")
+        .select("classroom_id")
+        .eq("teacher_profile_id", teacherId);
+
+      if (ctErr) {
+        return NextResponse.json({ error: ctErr.message }, { status: 500 });
+      }
+
+      classroomIds = (classroomTeachers ?? []).map((ct) => ct.classroom_id).filter(Boolean);
     }
-
-    const classroomIds = (classroomTeachers ?? []).map((ct) => ct.classroom_id).filter(Boolean);
 
     if (classroomIds.length === 0) {
       return NextResponse.json({ students: [], availableTutors: [] });
@@ -130,12 +146,17 @@ export async function GET() {
       assignedTutors: assignmentsByStudent.get(s.id) ?? [],
     }));
 
-    // 6. Available tutors in the same institution
-    const { data: availableTutorRows, error: tutorsErr } = await admin
+    // 6. Available tutors: master ve todos, maestro solo los de su institución
+    let availableTutorsQuery = admin
       .from("profiles")
       .select("id, full_name, email, child_name, child_grade")
-      .eq("role", "tutor")
-      .eq("institution_id", teacherProfile.institution_id);
+      .eq("role", "tutor");
+
+    if (teacherProfile.role !== "master" && teacherProfile.institution_id) {
+      availableTutorsQuery = availableTutorsQuery.eq("institution_id", teacherProfile.institution_id);
+    }
+
+    const { data: availableTutorRows, error: tutorsErr } = await availableTutorsQuery;
 
     if (tutorsErr) {
       return NextResponse.json({ error: tutorsErr.message }, { status: 500 });
@@ -191,29 +212,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "student_id y tutor_profile_id son requeridos" }, { status: 400 });
     }
 
-    // Validate: student belongs to one of teacher's classrooms
-    const { data: classroomTeachers } = await admin
-      .from("classroom_teachers")
-      .select("classroom_id")
-      .eq("teacher_profile_id", teacherId);
+    // Validate: student belongs to one of teacher's classrooms (maestro only; master puede asignar cualquier alumno)
+    if (teacherProfile.role !== "master") {
+      const { data: classroomTeachers } = await admin
+        .from("classroom_teachers")
+        .select("classroom_id")
+        .eq("teacher_profile_id", teacherId);
 
-    const classroomIds = (classroomTeachers ?? []).map((ct) => ct.classroom_id).filter(Boolean);
+      const classroomIds = (classroomTeachers ?? []).map((ct) => ct.classroom_id).filter(Boolean);
 
-    if (classroomIds.length === 0) {
-      return NextResponse.json({ error: "No tienes salones asignados" }, { status: 403 });
-    }
+      if (classroomIds.length === 0) {
+        return NextResponse.json({ error: "No tienes salones asignados" }, { status: 403 });
+      }
 
-    const { data: enrollment } = await admin
-      .from("student_enrollments")
-      .select("student_id")
-      .in("classroom_id", classroomIds)
-      .eq("student_id", student_id)
-      .eq("active", true)
-      .is("deleted_at", null)
-      .maybeSingle();
+      const { data: enrollment } = await admin
+        .from("student_enrollments")
+        .select("student_id")
+        .in("classroom_id", classroomIds)
+        .eq("student_id", student_id)
+        .eq("active", true)
+        .is("deleted_at", null)
+        .maybeSingle();
 
-    if (!enrollment) {
-      return NextResponse.json({ error: "El alumno no pertenece a tus salones" }, { status: 403 });
+      if (!enrollment) {
+        return NextResponse.json({ error: "El alumno no pertenece a tus salones" }, { status: 403 });
+      }
     }
 
     // Validate: tutor exists, has role tutor, same institution
@@ -227,7 +250,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "El tutor no existe o no tiene el rol correcto" }, { status: 400 });
     }
 
-    if (tutorProfile.institution_id !== teacherProfile.institution_id) {
+    // Maestro: verificar misma institución. Master puede asignar tutores de cualquier institución.
+    if (
+      teacherProfile.role !== "master" &&
+      tutorProfile.institution_id !== teacherProfile.institution_id
+    ) {
       return NextResponse.json({ error: "El tutor no pertenece a la misma institución" }, { status: 400 });
     }
 
