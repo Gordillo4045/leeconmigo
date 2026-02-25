@@ -85,6 +85,13 @@ export function AppSidebar({
   const { theme, setTheme } = useTheme();
   const displayName = fullName?.trim() || email || "Usuario";
 
+  // Master usa email/password (sin foto de Google) — generamos un avatar decorativo único por cuenta
+  const effectiveAvatarUrl =
+    avatarUrl ??
+    (role === "master"
+      ? `https://api.dicebear.com/9.x/pixel-art/svg?seed=${encodeURIComponent(email)}`
+      : undefined);
+
   const onSignOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -155,7 +162,7 @@ export function AppSidebar({
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton>
                   <Avatar className="size-7">
-                    <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
+                    <AvatarImage src={effectiveAvatarUrl} alt={displayName} />
                     <AvatarFallback>
                       {displayName.charAt(0).toUpperCase()}
                     </AvatarFallback>
