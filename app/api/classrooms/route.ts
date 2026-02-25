@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getProfileByUserId } from "@/lib/auth/get-profile-server";
 
 export async function GET(req: Request) {
@@ -16,10 +17,13 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const institutionIdParam = url.searchParams.get("institution_id");
 
-    // Para maestros, solo salones asignados. Para admin/tutor RLS limita. Para master, filtrar por institution_id si se envía.
+    // Usamos admin client en API routes según el patrón del proyecto (bypasea RLS, filtramos manualmente)
+    const admin = createAdminClient();
+
+    // Para maestros: solo los salones que tienen asignados en classroom_teachers
     let classroomIds: string[] | null = null;
     if (profile.role === "maestro") {
-      const { data: ctRows, error: ctError } = await supabase
+      const { data: ctRows, error: ctError } = await admin
         .from("classroom_teachers")
         .select("classroom_id")
         .eq("teacher_profile_id", profile.id);
@@ -33,22 +37,37 @@ export async function GET(req: Request) {
 
       classroomIds = (ctRows ?? []).map((r: any) => r.classroom_id).filter(Boolean);
 
-      // Si el maestro no tiene salones asignados, devolver lista vacía.
       if (!classroomIds.length) {
         return NextResponse.json({ classrooms: [] }, { status: 200 });
       }
     }
 
-    let query = supabase
+    // institution_id efectivo: parámetro URL > institution_id del perfil (para admin)
+    const effectiveInstitutionId =
+      institutionIdParam ??
+      (profile.role === "admin" ? profile.institution_id : null);
+
+    // Admin sin institución asignada y sin param → sin acceso
+    if (profile.role === "admin" && !effectiveInstitutionId) {
+      return NextResponse.json({ classrooms: [] }, { status: 200 });
+    }
+
+    // Master sin institution_id param → sin contexto, devolver vacío
+    if (profile.role === "master" && !effectiveInstitutionId) {
+      return NextResponse.json({ classrooms: [] }, { status: 200 });
+    }
+
+    let query = admin
       .from("classrooms")
       .select("id,name,grade_id")
       .is("deleted_at", null)
       .order("grade_id", { ascending: true })
       .order("name", { ascending: true });
 
-    if (profile.role === "master" && institutionIdParam) {
-      query = query.eq("institution_id", institutionIdParam);
+    if (effectiveInstitutionId) {
+      query = query.eq("institution_id", effectiveInstitutionId);
     }
+
     const finalQuery = classroomIds ? query.in("id", classroomIds) : query;
     const { data, error } = await finalQuery;
 
