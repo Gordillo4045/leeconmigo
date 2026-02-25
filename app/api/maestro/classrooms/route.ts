@@ -18,11 +18,38 @@ export async function GET() {
     if (!profile || (profile.role !== "maestro" && profile.role !== "master")) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
+
+    const admin = createAdminClient();
+
+    // Master: devolver todos los salones del sistema sin filtro por institución/maestro
+    if (profile.role === "master") {
+      const { data: rooms, error: roomsErr } = await admin
+        .from("classrooms")
+        .select("id, name, grade_id")
+        .is("deleted_at", null);
+
+      if (roomsErr) {
+        return NextResponse.json(
+          { error: "Error al listar salones", message: roomsErr.message },
+          { status: 500 }
+        );
+      }
+
+      const classrooms: Classroom[] = ((rooms ?? []) as any[]).map((c) => ({
+        id: c.id,
+        name: c.name,
+        grade_id: c.grade_id,
+      }));
+      classrooms.sort(
+        (a, b) =>
+          a.grade_id - b.grade_id || String(a.name).localeCompare(String(b.name))
+      );
+      return NextResponse.json({ classrooms }, { status: 200 });
+    }
+
     if (!profile.institution_id) {
       return NextResponse.json({ error: "Falta institution_id en el profile" }, { status: 400 });
     }
-
-    const admin = createAdminClient();
 
     // 1) classroom_ids asignados al maestro (SIN deleted_at porque tu tabla no lo tiene)
     const { data: ctRows, error: ctErr } = await admin
