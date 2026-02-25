@@ -44,9 +44,13 @@ export async function GET(req: Request) {
       `,
         { count: "exact" }
       )
-      .eq("teacher_profile_id", profile.id)
       .is("deleted_at", null)
       .order("published_at", { ascending: false });
+
+    // Maestro: filtrar solo sus sesiones; master ve todas
+    if (profile.role !== "master") {
+      sessionsQuery = sessionsQuery.eq("teacher_profile_id", profile.id);
+    }
 
     const nowIso = new Date().toISOString();
     if (status === "open") {
