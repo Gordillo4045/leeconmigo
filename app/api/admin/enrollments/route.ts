@@ -151,7 +151,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Insertar nueva inscripción
+    // ✅ Insertar nueva inscripción (student_enrollments no tiene institution_id)
     const { data, error } = await admin
       .from("student_enrollments")
       .insert({
@@ -159,7 +159,6 @@ export async function POST(req: Request) {
         classroom_id: classroomId,
         grade_id: classroom.grade_id,
         active: true,
-        institution_id: classroom.institution_id,
         created_by: user.id,
         updated_by: user.id,
       })
