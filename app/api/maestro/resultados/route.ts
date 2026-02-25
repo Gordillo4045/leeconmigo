@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getProfileByUserId } from "@/lib/auth/get-profile-server";
 
 type AttemptRow = {
   id: string;
@@ -73,18 +74,39 @@ export async function GET() {
     }
 
     const admin = createAdminClient();
+    const profile = await getProfileByUserId(supabase, user.id);
 
-    // 1. Salones del maestro
-    const { data: classroomTeachers, error: ctErr } = await admin
-      .from("classroom_teachers")
-      .select("classroom_id")
-      .eq("teacher_profile_id", user.id);
+    let classroomIds: string[];
 
-    if (ctErr || !classroomTeachers?.length) {
-      return NextResponse.json(emptyResponse());
+    if (profile?.role === "master") {
+      // Master: vista global de todos los salones
+      const { data: allRooms, error: roomsErr } = await admin
+        .from("classrooms")
+        .select("id")
+        .is("deleted_at", null);
+
+      if (roomsErr || !allRooms?.length) {
+        return NextResponse.json(emptyResponse());
+      }
+
+      classroomIds = ((allRooms ?? []) as any[]).map((c) => c.id as string).filter(Boolean);
+    } else {
+      // Maestro: solo sus salones asignados
+      const { data: classroomTeachers, error: ctErr } = await admin
+        .from("classroom_teachers")
+        .select("classroom_id")
+        .eq("teacher_profile_id", user.id);
+
+      if (ctErr || !classroomTeachers?.length) {
+        return NextResponse.json(emptyResponse());
+      }
+
+      classroomIds = classroomTeachers.map((ct) => ct.classroom_id).filter(Boolean);
     }
 
-    const classroomIds = classroomTeachers.map((ct) => ct.classroom_id).filter(Boolean);
+    if (!classroomIds.length) {
+      return NextResponse.json(emptyResponse());
+    }
 
     // 2. Inscripciones activas
     const { data: enrollments, error: enrollErr } = await admin
