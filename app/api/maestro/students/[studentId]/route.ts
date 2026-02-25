@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getProfileByUserId } from "@/lib/auth/get-profile-server";
 
 type AttemptRow = {
   id: string;
@@ -35,8 +37,16 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Historial de intentos enviados por este alumno para sesiones del maestro actual
-    const { data, error } = await supabase
+    const profile = await getProfileByUserId(supabase, user.id);
+    if (!profile || (profile.role !== "maestro" && profile.role !== "master")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const adminClient = createAdminClient();
+
+    // Historial de intentos enviados por este alumno
+    // Master: todos los intentos; maestro: solo los de sus sesiones
+    let query = adminClient
       .from("evaluation_attempts")
       .select(
         `
@@ -54,9 +64,14 @@ export async function GET(
       )
       .eq("student_id", cleanId)
       .eq("status", "submitted")
-      .eq("evaluation_sessions.teacher_profile_id", user.id)
       .order("submitted_at", { ascending: false })
       .limit(20);
+
+    if (profile.role !== "master") {
+      query = query.eq("evaluation_sessions.teacher_profile_id", user.id);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return NextResponse.json(
