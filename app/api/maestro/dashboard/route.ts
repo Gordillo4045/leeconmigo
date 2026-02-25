@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getProfileByUserId } from "@/lib/auth/get-profile-server";
 
 type AttemptRow = {
   id: string;
@@ -39,38 +40,43 @@ export async function GET() {
 
     const teacherId = user.id;
 
-    // 2) Usamos admin client solo para consultar tablas con RLS complicada,
-    // siempre filtrando manualmente por el maestro.
     const admin = createAdminClient();
+    const profile = await getProfileByUserId(supabase, teacherId);
 
-    // 1) Obtener salones asignados al maestro
-    const { data: classroomTeachers, error: ctError } = await admin
-      .from("classroom_teachers")
-      .select("classroom_id")
-      .eq("teacher_profile_id", teacherId);
+    let classroomIds: string[];
 
-    if (ctError) {
-      return NextResponse.json(
-        { error: "No se pudieron obtener los salones", message: ctError.message },
-        { status: 500 },
-      );
+    if (profile?.role === "master") {
+      // Master: vista global de todos los salones del sistema
+      const { data: allRooms, error: roomsErr } = await admin
+        .from("classrooms")
+        .select("id")
+        .is("deleted_at", null);
+
+      if (roomsErr) {
+        return NextResponse.json(
+          { error: "No se pudieron obtener los salones", message: roomsErr.message },
+          { status: 500 },
+        );
+      }
+
+      classroomIds = ((allRooms ?? []) as any[]).map((c) => c.id as string).filter(Boolean);
+    } else {
+      // Maestro: solo sus salones asignados
+      const { data: classroomTeachers, error: ctError } = await admin
+        .from("classroom_teachers")
+        .select("classroom_id")
+        .eq("teacher_profile_id", teacherId);
+
+      if (ctError) {
+        return NextResponse.json(
+          { error: "No se pudieron obtener los salones", message: ctError.message },
+          { status: 500 },
+        );
+      }
+
+      classroomIds = (classroomTeachers ?? []).map((ct) => ct.classroom_id).filter(Boolean);
     }
 
-    if (!classroomTeachers || classroomTeachers.length === 0) {
-      // Maestro sin salones aún: devolver dashboard vacío pero válido
-      return NextResponse.json(
-        {
-          totalStudents: 0,
-          totalEvaluations: 0,
-          studentsAtRisk: 0,
-          avgScorePercent: null,
-          students: [],
-        },
-        { status: 200 },
-      );
-    }
-
-    const classroomIds = classroomTeachers.map((ct) => ct.classroom_id).filter(Boolean);
     if (classroomIds.length === 0) {
       return NextResponse.json(
         {
