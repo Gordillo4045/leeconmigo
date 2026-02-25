@@ -15,13 +15,18 @@ export default async function AdminGestionIndex() {
 
   const profile = await getProfileByUserId(supabase, user.id);
 
-  if (!profile || profile.role !== "admin") {
+  if (!profile || (profile.role !== "admin" && profile.role !== "master")) {
     redirect("/unauthorized");
   }
 
-  // 🚨 Si no tiene institución asignada, no puede gestionar nada
+  // Master tiene su propio home; no debe quedar atrapado aquí
+  if (profile.role === "master") {
+    redirect("/master");
+  }
+
+  // Admin sin institución asignada: no puede gestionar nada aún
   if (!profile.institution_id) {
-    redirect("/admin");
+    redirect("/unauthorized");
   }
 
   // Siempre redirige a gestión con su institución

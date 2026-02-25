@@ -15,6 +15,8 @@ import {
   BookOpen,
   FileText,
   Users,
+  Building,
+  Shield,
 } from "lucide-react";
 
 import {
@@ -44,6 +46,9 @@ const PANEL_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
   "Generar (IA)": BookOpen,
   Plantillas: FileText,
   Tutores: Users,
+  Instituciones: Building,
+  Usuarios: Users,
+  Master: Shield,
 };
 
 function getPanelIcon(label: string) {
@@ -56,27 +61,44 @@ function itemMatchesSearch(item: MasterAdminItem, query: string): boolean {
   return item.keywords?.some((k) => k.toLowerCase().includes(q)) ?? false;
 }
 
+type GroupKey = "master" | "admin" | "maestro";
+
 export function MasterAdminPanel() {
   const pathname = usePathname();
   const [search, setSearch] = React.useState("");
 
-  // Detect which group owns the current route
-  const activeGroup = React.useMemo<"admin" | "maestro" | null>(() => {
-    if (pathname.startsWith("/admin")) return "admin";
-    if (pathname.startsWith("/maestro")) return "maestro";
-    return null;
+  // Detect which group owns the current route by finding the longest-matching item href
+  const activeGroup = React.useMemo<GroupKey | null>(() => {
+    let bestGroup: GroupKey | null = null;
+    let bestLen = -1;
+
+    for (const group of MASTER_ADMIN_GROUPS) {
+      for (const item of group.items) {
+        if (pathname === item.href) {
+          // Exact match always wins
+          return group.group as GroupKey;
+        }
+        if (item.href !== "/" && pathname.startsWith(item.href + "/")) {
+          if (item.href.length > bestLen) {
+            bestLen = item.href.length;
+            bestGroup = group.group as GroupKey;
+          }
+        }
+      }
+    }
+    return bestGroup;
   }, [pathname]);
 
-  // Open group state — default to active route group, then "admin"
-  const [openGroup, setOpenGroup] = React.useState<"admin" | "maestro" | null>(
-    activeGroup ?? "admin"
+  // Open group state — default to active route group, then "master"
+  const [openGroup, setOpenGroup] = React.useState<GroupKey | null>(
+    activeGroup ?? "master"
   );
 
   // Sync open group from localStorage once after mount
   React.useEffect(() => {
     const saved = localStorage.getItem(LS_KEY_GROUP);
-    if (saved === "admin" || saved === "maestro") {
-      setOpenGroup(saved);
+    if (saved === "master" || saved === "admin" || saved === "maestro") {
+      setOpenGroup(saved as GroupKey);
     }
   }, []);
 
@@ -91,11 +113,11 @@ export function MasterAdminPanel() {
   }, [search]);
 
   // Which group is visually open (auto-expand logic during search)
-  const effectiveOpenGroup = React.useMemo<"admin" | "maestro" | null>(() => {
+  const effectiveOpenGroup = React.useMemo<GroupKey | null>(() => {
     if (!filteredGroups) return openGroup;
     if (filteredGroups.length === 0) return null;
-    if (filteredGroups.length === 1) return filteredGroups[0].group as "admin" | "maestro";
-    // Both have results: prefer group with the active route, else "admin"
+    if (filteredGroups.length === 1) return filteredGroups[0].group as GroupKey;
+    // Multiple groups with results: prefer group with the active route, else "master"
     const groupWithActive = filteredGroups.find((g) =>
       g.items.some(
         (item) =>
@@ -103,10 +125,10 @@ export function MasterAdminPanel() {
           (item.href !== "/" && pathname.startsWith(item.href + "/"))
       )
     );
-    return (groupWithActive?.group ?? "admin") as "admin" | "maestro";
+    return (groupWithActive?.group ?? "master") as GroupKey;
   }, [filteredGroups, openGroup, pathname]);
 
-  function handleOpenChange(group: "admin" | "maestro", shouldOpen: boolean) {
+  function handleOpenChange(group: GroupKey, shouldOpen: boolean) {
     // During search the accordion is auto-controlled; ignore manual toggles
     if (filteredGroups) return;
     const next = shouldOpen ? group : null;
@@ -154,7 +176,7 @@ export function MasterAdminPanel() {
             key={group.group}
             open={isOpen}
             onOpenChange={(open) =>
-              handleOpenChange(group.group as "admin" | "maestro", open)
+              handleOpenChange(group.group as GroupKey, open)
             }
           >
             <SidebarGroup className="p-0">

@@ -13,36 +13,52 @@ export type MasterAdminItem = {
 };
 
 export type MasterAdminGroup = {
-  group: "admin" | "maestro";
+  group: "master" | "admin" | "maestro";
   label: string;
   items: MasterAdminItem[];
 };
 
-/** Configuración del Panel Administrativo del master (Admin + Maestro) */
+/** Configuración del Panel Administrativo del master (Master + Admin + Maestro) */
 export const MASTER_ADMIN_GROUPS: MasterAdminGroup[] = [
+  {
+    group: "master",
+    label: "Master",
+    items: [
+      {
+        label: "Inicio",
+        href: "/master",
+        keywords: ["home", "inicio", "panel", "master", "dashboard"],
+      },
+      {
+        label: "Instituciones",
+        href: "/master/instituciones",
+        keywords: ["instituciones", "escuelas", "colegios", "centros"],
+      },
+      {
+        label: "Usuarios",
+        href: "/master/usuarios",
+        keywords: ["usuarios", "roles", "perfiles", "cuentas", "maestros", "admins"],
+      },
+      {
+        label: "Plantillas",
+        href: "/master/plantillas",
+        keywords: ["plantillas", "textos", "lecturas", "contenido"],
+      },
+    ],
+  },
   {
     group: "admin",
     label: "Admin",
     items: [
       {
-        label: "Inicio",
-        href: "/admin",
-        keywords: ["home", "inicio", "panel", "admin"],
-      },
-      {
         label: "Gestión alumnos y salones",
-        href: "/admin/gestion",
+        href: "/master/gestion",
         keywords: ["alumnos", "salones", "gestión", "gestion", "estudiantes", "grupos", "clases"],
       },
       {
         label: "Evaluaciones publicadas",
-        href: "/admin/gestion/evaluaciones",
+        href: "/master/gestion/evaluaciones",
         keywords: ["evaluaciones", "publicadas", "tests", "examen", "sesiones"],
-      },
-      {
-        label: "Resultados",
-        href: "/admin/resultados",
-        keywords: ["resultados", "reportes", "estadísticas", "metricas", "datos"],
       },
     ],
   },
@@ -103,25 +119,19 @@ export function getNav(role: UserRole): NavItem[] {
     ];
   }
 
-  const base =
-    role === "admin"
-      ? "/admin"
-      : "/master";
-
-  const items: NavItem[] = [
-    { label: "Inicio", href: base },
-    { label: "Gestión alumnos y salones", href: `${base}/gestion` },
-    { label: "Evaluaciones publicadas", href: `${base}/gestion/evaluaciones` },
-    { label: "Resultados", href: `${base}/resultados` },
-  ];
-
-  if (role === "master") {
-    items.splice(1, 0,
-      { label: "Instituciones", href: "/master/instituciones" },
-      { label: "Usuarios", href: "/master/usuarios" },
-      { label: "Plantillas", href: "/master/plantillas" },
-    );
+  if (role === "admin") {
+    return [
+      { label: "Inicio", href: "/admin" },
+      { label: "Gestión alumnos y salones", href: "/admin/gestion" },
+      { label: "Evaluaciones publicadas", href: "/admin/gestion/evaluaciones" },
+    ];
   }
 
-  return items;
+  // master — getNav() is fallback; la barra lateral usa MasterAdminPanel directamente
+  return [
+    { label: "Inicio", href: "/master" },
+    { label: "Instituciones", href: "/master/instituciones" },
+    { label: "Usuarios", href: "/master/usuarios" },
+    { label: "Plantillas", href: "/master/plantillas" },
+  ];
 }
