@@ -40,7 +40,7 @@ export async function GET(
 
     const { data: rows, error } = await admin
       .from("classroom_teachers")
-      .select("id, teacher_profile_id, profiles(full_name, email)")
+      .select("id, teacher_profile_id, profiles(id, full_name, email)")
       .eq("classroom_id", classroomId);
 
     if (error) {
@@ -50,12 +50,16 @@ export async function GET(
       );
     }
 
-    const teachers = (rows ?? []).map((r: { id: string; teacher_profile_id: string; profiles?: { id: string; full_name: string | null; email: string | null } | null }) => ({
-      id: r.id,
-      teacher_profile_id: r.teacher_profile_id,
-      full_name: r.profiles?.full_name ?? null,
-      email: r.profiles?.email ?? null,
-    }));
+    const teachers = (rows ?? []).map((r: any) => {
+      // La relación profiles viene como arreglo; tomamos el primero
+      const profile = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+      return {
+        id: r.id as string,
+        teacher_profile_id: r.teacher_profile_id as string,
+        full_name: (profile?.full_name as string | null) ?? null,
+        email: (profile?.email as string | null) ?? null,
+      };
+    });
 
     return NextResponse.json({ teachers }, { status: 200 });
   } catch (e: unknown) {

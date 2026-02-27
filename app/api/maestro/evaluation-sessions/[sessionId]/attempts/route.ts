@@ -57,23 +57,20 @@ export async function GET(
       );
     }
 
-    const list = (attempts ?? []).map((a: {
-      id: string;
-      student_id: string;
-      status: string;
-      students?: { first_name: string; last_name: string; curp: string } | null;
-      attempt_code_display?: { code_plain: string }[] | { code_plain: string } | null;
-    }) => {
-      const display = Array.isArray(a.attempt_code_display) ? a.attempt_code_display[0] : a.attempt_code_display;
+    const list = (attempts ?? []).map((a: any) => {
+      const display = Array.isArray(a.attempt_code_display)
+        ? a.attempt_code_display[0]
+        : a.attempt_code_display;
+      const student = Array.isArray(a.students) ? a.students[0] : a.students;
       return {
-        attempt_id: a.id,
-        student_id: a.student_id,
-        status: a.status,
-        student_name: a.students
-          ? `${(a.students.last_name ?? "").trim()} ${(a.students.first_name ?? "").trim()}`.trim() || "—"
+        attempt_id: a.id as string,
+        student_id: a.student_id as string,
+        status: a.status as string,
+        student_name: student
+          ? `${(student.last_name ?? "").trim()} ${(student.first_name ?? "").trim()}`.trim() || "—"
           : "—",
-        curp: (a.students as { curp?: string } | null)?.curp ?? null,
-        code: display?.code_plain ?? null,
+        curp: (student as { curp?: string } | null)?.curp ?? null,
+        code: (display as { code_plain?: string } | null)?.code_plain ?? null,
       };
     });
 

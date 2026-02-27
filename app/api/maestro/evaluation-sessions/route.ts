@@ -120,16 +120,7 @@ export async function GET(req: Request) {
 
     const now = new Date();
     const sessionsPayload = list.map(
-      (s: {
-        id: string;
-        classroom_id: string;
-        status: string;
-        published_at: string;
-        expires_at: string;
-        closed_at: string | null;
-        classrooms?: { id: string; name: string; grade_id: number } | null;
-        texts?: { id: string; title: string | null } | null;
-      }) => {
+      (s: any) => {
         const stats = bySession.get(s.id) ?? {
           total: 0,
           submitted: 0,
@@ -137,7 +128,7 @@ export async function GET(req: Request) {
           expired: 0,
           in_progress: 0,
         };
-        const expiresAt = s.expires_at ? new Date(s.expires_at) : null;
+        const expiresAt = s.expires_at ? new Date(s.expires_at as string) : null;
         const isExpired = expiresAt ? expiresAt <= now : false;
         const statusEffective = s.status === "open" && isExpired ? "expired" : s.status;
         let timeLeft: string | null = null;
@@ -155,12 +146,15 @@ export async function GET(req: Request) {
           timeLeft = "Cerrada";
         }
 
+        const classroom = Array.isArray(s.classrooms) ? s.classrooms[0] : s.classrooms;
+        const text = Array.isArray(s.texts) ? s.texts[0] : s.texts;
+
         return {
           id: s.id,
           classroom_id: s.classroom_id,
-          classroom_name: (s.classrooms as { name: string } | null)?.name ?? "—",
-          grade_id: (s.classrooms as { grade_id: number } | null)?.grade_id ?? null,
-          text_title: (s.texts as { title: string | null } | null)?.title ?? "—",
+          classroom_name: (classroom as { name?: string } | null)?.name ?? "—",
+          grade_id: (classroom as { grade_id?: number } | null)?.grade_id ?? null,
+          text_title: (text as { title?: string | null } | null)?.title ?? "—",
           status: statusEffective,
           published_at: s.published_at,
           expires_at: s.expires_at,
