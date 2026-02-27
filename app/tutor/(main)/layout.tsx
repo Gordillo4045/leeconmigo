@@ -26,7 +26,7 @@ async function TutorSidebarGuard({ children }: { children: ReactNode }) {
       nav={nav}
       role="tutor"
       email={profile?.email ?? ""}
-      fullName={profile?.full_name}
+      fullName={profile?.full_name ?? null}
       avatarUrl={avatarUrl}
     >
       {children}

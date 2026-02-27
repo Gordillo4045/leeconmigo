@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { BookOpen } from "lucide-react";
 import { CurrentYear } from "./CurrentYear";
 
@@ -101,7 +102,13 @@ export function Footer() {
 
         {/* Barra inferior */}
         <div className="mt-10 pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <p>© <CurrentYear /> Lee Conmigo. Todos los derechos reservados.</p>
+          <p>
+            ©{" "}
+            <Suspense fallback={null}>
+              <CurrentYear />
+            </Suspense>{" "}
+            Lee Conmigo. Todos los derechos reservados.
+          </p>
           <p>
             Evaluación temprana de lectura · TecNM
           </p>
