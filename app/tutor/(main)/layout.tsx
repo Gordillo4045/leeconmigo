@@ -2,6 +2,7 @@ import { ReactNode, Suspense } from "react";
 import { getNav } from "@/components/dashboard/nav";
 import { SidebarLayout } from "@/components/dashboard/sidebar-layout";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getProfileByUserId } from "@/lib/auth/get-profile-server";
 
 async function TutorSidebarGuard({ children }: { children: ReactNode }) {
@@ -21,6 +22,16 @@ async function TutorSidebarGuard({ children }: { children: ReactNode }) {
     claims?.picture ??
     null;
 
+  const admin = createAdminClient();
+  const { count: unreadCount } = await admin
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("recipient_profile_id", userId ?? "")
+    .eq("is_read", false)
+    .then((r) => ({ count: r.count ?? 0 }));
+
+  const badgeCounts = unreadCount > 0 ? { "/tutor/notificaciones": unreadCount } : {};
+
   return (
     <SidebarLayout
       nav={nav}
@@ -28,6 +39,7 @@ async function TutorSidebarGuard({ children }: { children: ReactNode }) {
       email={profile?.email ?? ""}
       fullName={profile?.full_name ?? null}
       avatarUrl={avatarUrl}
+      badgeCounts={badgeCounts}
     >
       {children}
     </SidebarLayout>

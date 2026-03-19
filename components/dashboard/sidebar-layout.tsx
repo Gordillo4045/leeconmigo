@@ -13,6 +13,7 @@ type SidebarLayoutProps = {
   email: string;
   fullName: string | null;
   avatarUrl?: string | null;
+  badgeCounts?: Record<string, number>;
   children: ReactNode;
 };
 
@@ -31,6 +32,7 @@ export function SidebarLayout({
   email,
   fullName,
   avatarUrl,
+  badgeCounts,
   children,
 }: SidebarLayoutProps) {
   return (
@@ -42,6 +44,7 @@ export function SidebarLayout({
         email={email}
         fullName={fullName}
         avatarUrl={avatarUrl ?? null}
+        badgeCounts={badgeCounts}
         className="shrink-0"
       />
       <SidebarInset>

@@ -6,6 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
+type TutorRequest = {
+  id: string;
+  tutorProfileId: string;
+  tutorName: string;
+  tutorEmail: string;
+  studentId: string;
+  studentName: string;
+  createdAt: string;
+};
+
 type AssignedTutor = {
   assignmentId: string;
   tutorProfileId: string;
@@ -82,6 +92,12 @@ export function TutoresManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [requests, setRequests] = useState<TutorRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(true);
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+  const [rejectingRequestId, setRejectingRequestId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+
   // Modal state
   const [modalStudent, setModalStudent] = useState<Student | null>(null);
   const [search, setSearch] = useState("");
@@ -105,7 +121,36 @@ export function TutoresManager() {
 
   useEffect(() => {
     load();
+    fetch("/api/maestro/tutor-requests")
+      .then((r) => r.json())
+      .then((d) => setRequests(d.requests ?? []))
+      .finally(() => setRequestsLoading(false));
   }, [load]);
+
+  async function handleApprove(requestId: string) {
+    setProcessingRequestId(requestId);
+    const res = await fetch(`/api/maestro/tutor-requests/${requestId}/approve`, { method: "POST" });
+    if (res.ok) {
+      setRequests((prev) => prev.filter((r) => r.id !== requestId));
+      await load();
+    }
+    setProcessingRequestId(null);
+  }
+
+  async function handleReject(requestId: string) {
+    setProcessingRequestId(requestId);
+    const res = await fetch(`/api/maestro/tutor-requests/${requestId}/reject`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: rejectReason }),
+    });
+    if (res.ok) {
+      setRequests((prev) => prev.filter((r) => r.id !== requestId));
+    }
+    setRejectingRequestId(null);
+    setRejectReason("");
+    setProcessingRequestId(null);
+  }
 
   async function handleAssign(tutorId: string) {
     if (!modalStudent) return;
@@ -185,6 +230,57 @@ export function TutoresManager() {
           {error}
         </div>
       )}
+
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Solicitudes de tutores</h2>
+        {requestsLoading ? (
+          <p className="text-sm text-muted-foreground">Cargando...</p>
+        ) : requests.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No hay solicitudes pendientes.</p>
+        ) : (
+          <div className="space-y-2">
+            {requests.map((req) => (
+              <div key={req.id} className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <p className="font-medium text-sm">{req.tutorName}</p>
+                  <p className="text-xs text-muted-foreground">{req.tutorEmail}</p>
+                  <p className="text-xs text-muted-foreground">Alumno: {req.studentName}</p>
+                </div>
+                <div className="flex gap-2">
+                  {rejectingRequestId === req.id ? (
+                    <div className="flex gap-2 items-center">
+                      <input
+                        className="border rounded px-2 py-1 text-xs"
+                        placeholder="Motivo (opcional)"
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                      />
+                      <button onClick={() => handleReject(req.id)} className="text-xs text-destructive font-medium">Confirmar</button>
+                      <button onClick={() => setRejectingRequestId(null)} className="text-xs text-muted-foreground">Cancelar</button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        disabled={processingRequestId === req.id}
+                        onClick={() => handleApprove(req.id)}
+                        className="text-xs font-medium text-green-700 border border-green-300 rounded px-2 py-1 hover:bg-green-50"
+                      >
+                        Aprobar
+                      </button>
+                      <button
+                        onClick={() => { setRejectingRequestId(req.id); setRejectReason(""); }}
+                        className="text-xs font-medium text-destructive border border-destructive/30 rounded px-2 py-1 hover:bg-destructive/5"
+                      >
+                        Rechazar
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Card>
         <CardHeader>

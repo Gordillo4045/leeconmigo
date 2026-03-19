@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 
     const { data: attempt, error: attemptErr } = await admin
       .from("evaluation_attempts")
-      .select("id, session_id")
+      .select("id, session_id, student_id")
       .eq("id", attempt_id)
       .is("deleted_at", null)
       .single();
@@ -214,6 +214,44 @@ export async function POST(req: Request) {
         { error: "Update failed", message: updateErr.message },
         { status: 500 }
       );
+    }
+
+    // Notify assigned tutors about evaluation completion (fire-and-forget)
+    try {
+      const { data: studentRow } = await admin
+        .from("students")
+        .select("first_name, last_name, institution_id")
+        .eq("id", attempt.student_id)
+        .is("deleted_at", null)
+        .single();
+
+      const { data: tutorAssignments } = await admin
+        .from("student_tutors")
+        .select("tutor_profile_id")
+        .eq("student_id", attempt.student_id)
+        .is("deleted_at", null);
+
+      if (studentRow && tutorAssignments && tutorAssignments.length > 0) {
+        const studentName =
+          `${studentRow.first_name ?? ""} ${studentRow.last_name ?? ""}`.trim() ||
+          "El alumno";
+        const scoreDisplay =
+          scorePercent != null ? `${Number(scorePercent).toFixed(1)}%` : "";
+        await admin.from("notifications").insert(
+          tutorAssignments.map((ta) => ({
+            institution_id: studentRow.institution_id,
+            recipient_profile_id: ta.tutor_profile_id,
+            title: `${studentName} completó una evaluación`,
+            body: scoreDisplay
+              ? `Obtuvo ${scoreDisplay} (${totalCorrect}/${totalCount} correctas).`
+              : `El alumno completó una evaluación.`,
+            related_attempt_id: attempt_id,
+            is_read: false,
+          }))
+        );
+      }
+    } catch {
+      // Non-fatal: do not block the student's submission response
     }
 
     return NextResponse.json({

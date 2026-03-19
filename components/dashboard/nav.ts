@@ -105,6 +105,7 @@ export function getNav(role: UserRole): NavItem[] {
     return [
       { label: "Resultados", href: "/tutor" },
       { label: "Notificaciones", href: "/tutor/notificaciones" },
+      { label: "Solicitar alumno", href: "/tutor/solicitar-alumno" },
     ];
   }
 

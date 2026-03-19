@@ -19,6 +19,7 @@ import {
   FileCheck,
   Bell,
   FileText,
+  UserPlus,
 } from "lucide-react";
 
 import {
@@ -59,6 +60,7 @@ const LABEL_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
   Plantillas: FileText,
   Gestión: Settings,
   Notificaciones: Bell,
+  "Solicitar alumno": UserPlus,
 };
 
 function getIconForLabel(label: string) {
@@ -71,6 +73,7 @@ export type AppSidebarProps = {
   fullName: string | null;
   email: string;
   avatarUrl: string | null;
+  badgeCounts?: Record<string, number>;
 } & React.ComponentProps<typeof Sidebar>;
 
 export function AppSidebar({
@@ -79,6 +82,7 @@ export function AppSidebar({
   fullName,
   email,
   avatarUrl,
+  badgeCounts,
   ...props
 }: AppSidebarProps) {
   const pathname = usePathname();
@@ -144,6 +148,11 @@ export function AppSidebar({
                         <Link href={item.href}>
                           <Icon className="size-4 shrink-0" />
                           <span>{item.label}</span>
+                          {badgeCounts?.[item.href] != null && badgeCounts[item.href] > 0 && (
+                            <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                              {badgeCounts[item.href]}
+                            </span>
+                          )}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
