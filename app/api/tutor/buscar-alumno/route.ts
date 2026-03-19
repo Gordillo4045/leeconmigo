@@ -106,10 +106,8 @@ export async function GET(req: NextRequest) {
       .limit(1)
       .maybeSingle();
 
-    const grade =
-      (enrollment?.classrooms as { grade_id: number | null } | null)?.grade_id ??
-      enrollment?.grade_id ??
-      null;
+    const classrooms = enrollment?.classrooms as unknown as { grade_id: number | null } | null;
+    const grade = classrooms?.grade_id ?? enrollment?.grade_id ?? null;
 
     // 5. Fetch institution name
     const { data: institution } = await admin

@@ -30,7 +30,7 @@ async function TutorSidebarGuard({ children }: { children: ReactNode }) {
     .eq("is_read", false)
     .then((r) => ({ count: r.count ?? 0 }));
 
-  const badgeCounts = unreadCount > 0 ? { "/tutor/notificaciones": unreadCount } : {};
+  const badgeCounts: Record<string, number> = unreadCount > 0 ? { "/tutor/notificaciones": unreadCount } : {};
 
   return (
     <SidebarLayout

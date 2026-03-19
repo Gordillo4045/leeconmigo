@@ -1,21 +1,22 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 
-const BarChart = dynamic(() => import("recharts").then((m) => ({ default: m.BarChart })), { ssr: false, loading: () => null });
-const Bar = dynamic(() => import("recharts").then((m) => ({ default: m.Bar })), { ssr: false, loading: () => null });
-const XAxis = dynamic(() => import("recharts").then((m) => ({ default: m.XAxis })), { ssr: false, loading: () => null });
-const YAxis = dynamic(() => import("recharts").then((m) => ({ default: m.YAxis })), { ssr: false, loading: () => null });
-const CartesianGrid = dynamic(() => import("recharts").then((m) => ({ default: m.CartesianGrid })), { ssr: false, loading: () => null });
-const Tooltip = dynamic(() => import("recharts").then((m) => ({ default: m.Tooltip })), { ssr: false, loading: () => null });
-const ResponsiveContainer = dynamic(() => import("recharts").then((m) => ({ default: m.ResponsiveContainer })), { ssr: false, loading: () => null });
-const PieChart = dynamic(() => import("recharts").then((m) => ({ default: m.PieChart })), { ssr: false, loading: () => null });
-const Pie = dynamic(() => import("recharts").then((m) => ({ default: m.Pie })), { ssr: false, loading: () => null });
-const Cell = dynamic(() => import("recharts").then((m) => ({ default: m.Cell })), { ssr: false, loading: () => null });
-const LineChart = dynamic(() => import("recharts").then((m) => ({ default: m.LineChart })), { ssr: false, loading: () => null });
-const Line = dynamic(() => import("recharts").then((m) => ({ default: m.Line })), { ssr: false, loading: () => null });
-const Legend = dynamic(() => import("recharts").then((m) => ({ default: m.Legend })), { ssr: false, loading: () => null });
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  Legend,
+} from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, Clock, FileText, TrendingUp } from "lucide-react";
 
