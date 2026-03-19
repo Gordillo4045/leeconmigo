@@ -1,4 +1,7 @@
-create type if not exists public.request_status as enum ('pending', 'approved', 'rejected');
+do $create_type$ begin
+  create type public.request_status as enum ('pending', 'approved', 'rejected');
+exception when duplicate_object then null;
+end $create_type$;
 
 create table if not exists public.tutor_student_requests (
   id                 uuid primary key default gen_random_uuid(),
