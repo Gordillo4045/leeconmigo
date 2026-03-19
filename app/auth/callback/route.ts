@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/auth/login?error=oauth", url.origin));
   }
 
-  if (nextParam) {
+  if (nextParam && nextParam.startsWith("/")) {
     return NextResponse.redirect(new URL(nextParam, url.origin));
   }
 

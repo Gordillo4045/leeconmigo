@@ -90,10 +90,10 @@ export async function GET() {
       return NextResponse.json({ error: studentsErr.message }, { status: 500 });
     }
 
-    // 4. Get tutor assignments for these students
+    // 4. Get tutor assignments for these students (with profile details joined)
     const { data: assignments, error: assignErr } = await admin
       .from("student_tutors")
-      .select("id, student_id, tutor_profile_id")
+      .select("id, student_id, tutor_profile_id, profiles!tutor_profile_id(id, full_name, email)")
       .in("student_id", studentIds)
       .is("deleted_at", null);
 
@@ -101,20 +101,11 @@ export async function GET() {
       return NextResponse.json({ error: assignErr.message }, { status: 500 });
     }
 
-    // 5. Get tutor profile details for assigned tutors
-    const assignedTutorIds = Array.from(
-      new Set((assignments ?? []).map((a) => a.tutor_profile_id).filter(Boolean)),
-    );
-
-    let tutorProfileMap: Record<string, { full_name: string | null; email: string | null }> = {};
-    if (assignedTutorIds.length > 0) {
-      const { data: tutorProfiles } = await admin
-        .from("profiles")
-        .select("id, full_name, email")
-        .in("id", assignedTutorIds);
-
-      for (const tp of tutorProfiles ?? []) {
-        tutorProfileMap[tp.id] = { full_name: tp.full_name, email: tp.email };
+    const tutorProfileMap: Record<string, { full_name: string | null; email: string | null }> = {};
+    for (const a of assignments ?? []) {
+      const tp = (a as any).profiles;
+      if (tp && a.tutor_profile_id) {
+        tutorProfileMap[a.tutor_profile_id] = { full_name: tp.full_name, email: tp.email };
       }
     }
 

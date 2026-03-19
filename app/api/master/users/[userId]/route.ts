@@ -41,7 +41,7 @@ export async function PATCH(
 
     const allowedRoles = ["master", "admin", "maestro", "tutor"];
 
-    if (role !== undefined && !allowedRoles.includes(role)) {
+    if (role !== undefined && (!role || !allowedRoles.includes(role))) {
       return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
     }
 

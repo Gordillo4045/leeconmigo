@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     redirect(`/auth/error?error=${encodeURIComponent(error.message)}`);
   }
 
-  if (nextParam) {
+  if (nextParam && nextParam.startsWith("/")) {
     redirect(nextParam);
   }
 

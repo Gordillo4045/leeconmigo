@@ -30,7 +30,7 @@ export async function GET(req: Request) {
       .order("created_at", { ascending: false })
       .limit(200);
 
-    if (q) {
+    if (q && /^[a-zA-Z0-9\s@.\-_ÁÉÍÓÚáéíóúÑñÜü]*$/.test(q)) {
       query = query.or(`email.ilike.%${q}%,full_name.ilike.%${q}%`);
     }
 
