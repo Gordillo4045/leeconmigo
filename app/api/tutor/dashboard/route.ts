@@ -10,6 +10,7 @@ type AttemptRow = {
   correct_count: number | null;
   total_questions: number | null;
   submitted_at: string | null;
+  reading_time_ms: number | null;
   status: string;
 };
 
@@ -107,7 +108,7 @@ export async function GET() {
     const { data: attempts, error: attemptsErr } = await admin
       .from("evaluation_attempts")
       .select(
-        "id, student_id, score_percent, correct_count, total_questions, submitted_at, status, deleted_at",
+        "id, student_id, score_percent, correct_count, total_questions, submitted_at, reading_time_ms, status, deleted_at",
       )
       .in("student_id", studentIds)
       .eq("status", "submitted");
@@ -150,10 +151,28 @@ export async function GET() {
     let countScores = 0;
     let studentsAtRisk = 0;
 
+    // Todos los intentos agrupados por alumno, ordenados del más reciente al más antiguo
+    const allByStudent = new Map<string, AttemptRow[]>();
+    for (const a of attemptRows) {
+      const list = allByStudent.get(a.student_id) ?? [];
+      list.push(a);
+      allByStudent.set(a.student_id, list);
+    }
+    for (const [sid, list] of allByStudent) {
+      allByStudent.set(
+        sid,
+        list.sort((a, b) => {
+          const ta = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
+          const tb = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
+          return tb - ta;
+        }),
+      );
+    }
+
     const studentsPayload = studentRows.map((s) => {
-      const attemptsForStudent = byStudent.get(s.id);
-      const latest = attemptsForStudent?.latest ?? null;
-      const prev = attemptsForStudent?.previous ?? null;
+      const allAttempts = allByStudent.get(s.id) ?? [];
+      const latest = allAttempts[0] ?? null;
+      const prev = allAttempts[1] ?? null;
 
       const latestScore = latest ? computeScore(latest) : null;
       const prevScore = prev ? computeScore(prev) : null;
@@ -179,6 +198,14 @@ export async function GET() {
         latestScorePercent: latestScore,
         risk,
         trend,
+        attempts: allAttempts.map((a) => ({
+          id: a.id,
+          scorePercent: computeScore(a),
+          correctCount: a.correct_count,
+          totalQuestions: a.total_questions,
+          submittedAt: a.submitted_at,
+          readingTimeSec: a.reading_time_ms != null ? Math.round(a.reading_time_ms / 1000) : null,
+        })),
       };
     });
 
