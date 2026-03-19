@@ -83,28 +83,38 @@ export async function POST(
       }
     }
 
-    // 4. Check for existing active student_tutors assignment
+    // 4. Check for existing student_tutors row (active or soft-deleted)
     const { data: existingAssignment } = await admin
       .from("student_tutors")
-      .select("id")
+      .select("id, deleted_at")
       .eq("student_id", request.student_id)
       .eq("tutor_profile_id", request.tutor_profile_id)
-      .is("deleted_at", null)
       .maybeSingle();
 
-    if (existingAssignment) {
+    if (existingAssignment && !existingAssignment.deleted_at) {
       return NextResponse.json(
         { error: "El tutor ya está asignado a este alumno" },
         { status: 409 },
       );
     }
 
-    // 5. Insert into student_tutors
-    const { error: insertErr } = await admin.from("student_tutors").insert({
-      student_id: request.student_id,
-      tutor_profile_id: request.tutor_profile_id,
-      assigned_by: profile.id,
-    });
+    // 5. Insert or restore soft-deleted student_tutors row
+    let insertErr: { message: string } | null = null;
+
+    if (existingAssignment?.deleted_at) {
+      const { error } = await admin
+        .from("student_tutors")
+        .update({ deleted_at: null, assigned_by: profile.id })
+        .eq("id", existingAssignment.id);
+      insertErr = error;
+    } else {
+      const { error } = await admin.from("student_tutors").insert({
+        student_id: request.student_id,
+        tutor_profile_id: request.tutor_profile_id,
+        assigned_by: profile.id,
+      });
+      insertErr = error;
+    }
 
     if (insertErr) {
       const msg = insertErr.message ?? "";

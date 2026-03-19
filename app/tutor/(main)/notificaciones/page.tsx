@@ -47,7 +47,7 @@ export default function NotificacionesPage() {
         const res = await fetch("/api/tutor/notificaciones");
         const json = await res.json();
         if (!res.ok) throw new Error(json?.message || json?.error || `HTTP ${res.status}`);
-        if (!cancelled) setNotifications(json as Notif[]);
+        if (!cancelled) setNotifications(json.notifications ?? []);
       } catch (e: unknown) {
         if (!cancelled) setError(e instanceof Error ? e.message : "No se pudieron cargar las notificaciones.");
       } finally {
