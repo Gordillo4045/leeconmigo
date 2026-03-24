@@ -309,7 +309,7 @@ export default function StudentAttemptClient({ code }: { code: string }) {
                             type="button"
                             className={[
                               "rounded-md border p-3 text-left text-sm transition",
-                              isSelected ? "border-primary ring-2 ring-ring" : "hover:bg-accent",
+                              isSelected ? "border-primary ring-2 ring-ring" : "hover:bg-muted hover:scale-[1.02] hover:shadow-sm",
                             ].join(" ")}
                             onClick={() =>
                               setAnswers((a) => ({ ...a, [q.question_id]: opt.option_id }))

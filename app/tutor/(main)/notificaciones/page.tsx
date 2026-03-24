@@ -142,7 +142,7 @@ export default function NotificacionesPage() {
             <div
               key={notif.id}
               onClick={() => handleNotifClick(notif)}
-              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors hover:bg-accent/50 ${
+              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-all hover:bg-muted hover:translate-x-0.5 hover:shadow-sm ${
                 !notif.is_read ? "bg-muted" : "bg-card"
               } ${notif.related_attempt_id ? "cursor-pointer" : "cursor-default"}`}
             >

@@ -65,7 +65,7 @@ export function StudentCard({ id: _id, name, latestScorePercent, risk, trend, at
 
   return (
     <Card
-      className={hasHistory ? `cursor-pointer select-none transition-colors ${!expanded ? "hover:bg-accent/30" : ""}` : ""}
+      className={hasHistory ? `cursor-pointer select-none transition-all ${!expanded ? "hover:bg-muted hover:-translate-y-0.5 hover:shadow-md" : ""}` : ""}
       onClick={hasHistory ? () => setExpanded((v) => !v) : undefined}
     >
       <CardHeader className="pb-3">
