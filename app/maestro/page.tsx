@@ -16,6 +16,7 @@ import {
   Minus,
   Target,
   BarChart3,
+  ArrowLeft,
 } from "lucide-react";
 import { StudentDetailModal, type MaestroDashboardStudent } from "../../components/maestro/student-detail-modal";
 import { ResultadosSection } from "../../components/maestro/resultados-section";
