@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import {
   BookOpen,
-  ArrowLeft,
   Users,
   AlertTriangle,
   TrendingUp,
