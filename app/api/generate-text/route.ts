@@ -133,10 +133,15 @@ export async function POST(req: Request) {
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+    const minWords = Math.ceil(words * 0.95);
+    const maxWords = Math.ceil(words * 1.1);
+
     const systemPrompt = [
       "Eres un generador de textos escolares en español neutro para primaria (1° a 3°).",
-      "REGLAS DURAS: Responde SOLO con JSON válido (sin texto extra). El texto debe ser un solo bloque (sin listas).",
-      `Longitud objetivo: ${words} palabras (±10%). Dificultad: ${difficulty}. Grado: ${grade}.`,
+      "REGLAS DURAS: Responde SOLO con JSON válido (sin texto extra). El texto debe ser un solo bloque continuo de prosa (sin listas, sin viñetas, sin saltos de párrafo innecesarios).",
+      `LONGITUD OBLIGATORIA del campo "text": MÍNIMO ${minWords} palabras, MÁXIMO ${maxWords} palabras.`,
+      `El texto NO puede terminar antes de alcanzar ${minWords} palabras. Si el relato concluye antes, amplía con descripciones, contexto o detalles adicionales hasta completar el mínimo.`,
+      `Dificultad: ${difficulty}. Grado: ${grade}.`,
       include_questions
         ? [
             `Genera EXACTAMENTE ${qCount} preguntas de COMPRENSIÓN (opción múltiple, 4 opciones, 1 correcta).`,
@@ -148,7 +153,8 @@ export async function POST(req: Request) {
     ].join("\n");
 
     const userPrompt = [
-      `Temática: ${topic}. Grado: ${grade}. Dificultad: ${difficulty}. Palabras: ${words}.`,
+      `IMPORTANTE: el campo "text" debe tener entre ${minWords} y ${maxWords} palabras — no lo cortes antes.`,
+      `Temática: ${topic}. Grado: ${grade}. Dificultad: ${difficulty}. Palabras objetivo: ${words}.`,
       "Devuelve: title, topic, difficulty, grade, word_count_estimate, text,",
       "questions (preguntas de comprensión con q, options[4], answer_index 0-3),",
       "inference_statements (statement, context_fragment, correct_answer: verdadero|falso|indeterminado),",
