@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import type { EvaluationResult } from "@/components/evaluation/types";
 import type { EvaluationWizardData } from "@/components/evaluation/evaluation-wizard";
@@ -100,7 +100,7 @@ export function StudentEvaluationWizard({
   onError: (message: string) => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
-  const wizardData = mapPayloadToWizardData(payload);
+  const wizardData = useMemo(() => mapPayloadToWizardData(payload), [payload]);
 
   const handleSubmit = async (result: EvaluationResult) => {
     setSubmitting(true);

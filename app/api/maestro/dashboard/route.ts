@@ -153,11 +153,10 @@ export async function GET() {
     // 4) Intentos de evaluación enviados de esos alumnos
     const { data: attempts, error: attemptsError } = await admin
       .from("evaluation_attempts")
-      .select(
-        "id, student_id, score_percent, correct_count, total_questions, submitted_at, status, deleted_at",
-      )
+      .select("id, student_id, score_percent, correct_count, total_questions, submitted_at, status")
       .in("student_id", studentIds)
-      .eq("status", "submitted");
+      .eq("status", "submitted")
+      .is("deleted_at", null);
 
     if (attemptsError) {
       return NextResponse.json(
@@ -166,10 +165,7 @@ export async function GET() {
       );
     }
 
-    const attemptRows = ((attempts ?? []) as AttemptRow[]).filter(
-      // @ts-expect-error deleted_at viene en el select aunque no esté tipado en AttemptRow
-      (a) => !a.deleted_at,
-    );
+    const attemptRows = (attempts ?? []) as AttemptRow[];
 
     const totalStudents = studentRows.length;
     const totalEvaluations = attemptRows.length;

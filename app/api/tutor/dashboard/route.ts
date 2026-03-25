@@ -108,10 +108,11 @@ export async function GET() {
     const { data: attempts, error: attemptsErr } = await admin
       .from("evaluation_attempts")
       .select(
-        "id, student_id, score_percent, correct_count, total_questions, submitted_at, reading_time_ms, status, deleted_at",
+        "id, student_id, score_percent, correct_count, total_questions, submitted_at, reading_time_ms, status",
       )
       .in("student_id", studentIds)
-      .eq("status", "submitted");
+      .eq("status", "submitted")
+      .is("deleted_at", null);
 
     if (attemptsErr) {
       return NextResponse.json(
@@ -120,9 +121,7 @@ export async function GET() {
       );
     }
 
-    const attemptRows = ((attempts ?? []) as (AttemptRow & { deleted_at: string | null })[]).filter(
-      (a) => !a.deleted_at,
-    ) as AttemptRow[];
+    const attemptRows = (attempts ?? []) as AttemptRow[];
 
     const totalEvaluations = attemptRows.length;
 

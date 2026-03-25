@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Play, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -84,11 +85,12 @@ const HeroSection = () => {
               {/* Main illustration container */}
               <div className="absolute inset-0 rounded-3xl gradient-primary opacity-10" />
               <div className="absolute inset-4 rounded-2xl bg-card shadow-card flex items-center justify-center overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={heroImageSrc}
                   alt="Niños leyendo"
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
+                  priority
                 />
               </div>
 

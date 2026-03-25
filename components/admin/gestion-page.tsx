@@ -404,10 +404,10 @@ export function GestionPage({ institutionId }: Props = {}) {
     }
   };
 
-  const enrolledStudentIds = enrollments.map((e) => e.student_id);
-  const assignedTeacherIds = classroomTeachers.map((t) => t.teacher_profile_id);
-  const teachersNotInClassroom = institutionTeachers.filter((t) => !assignedTeacherIds.includes(t.id));
-  const studentsNotInClassroom = students.filter((s) => !enrolledStudentIds.includes(s.id));
+  const enrolledStudentIds = new Set(enrollments.map((e) => e.student_id));
+  const assignedTeacherIds = new Set(classroomTeachers.map((t) => t.teacher_profile_id));
+  const teachersNotInClassroom = institutionTeachers.filter((t) => !assignedTeacherIds.has(t.id));
+  const studentsNotInClassroom = students.filter((s) => !enrolledStudentIds.has(s.id));
 
   const filteredStudents = students.filter((s) => {
     if (!studentSearch.trim()) return true;

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -88,10 +88,10 @@ export default function TeacherPage() {
   const avgComprehension = data?.avgScorePercent ?? null;
   const students = data?.students ?? [];
 
-  const sortedStudents = [...students].sort((a, b) => {
+  const sortedStudents = useMemo(() => {
     const riskOrder: Record<RiskLevel, number> = { high: 0, medium: 1, low: 2 };
-    return riskOrder[a.risk] - riskOrder[b.risk];
-  });
+    return [...students].sort((a, b) => riskOrder[a.risk] - riskOrder[b.risk]);
+  }, [students]);
 
   return (
     <div className="min-h-screen bg-background">
