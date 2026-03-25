@@ -144,7 +144,7 @@ export async function POST(req: Request) {
       `Dificultad: ${difficulty}. Grado: ${grade}.`,
       include_questions
         ? [
-            `Genera EXACTAMENTE ${qCount} preguntas de COMPRENSIÓN (opción múltiple, 4 opciones, 1 correcta).`,
+            `Genera EXACTAMENTE ${qCount} preguntas de COMPRENSIÓN (opción múltiple, 4 opciones, 1 correcta). REGLA CRÍTICA para las opciones: todas las opciones de cada pregunta deben tener una longitud similar entre sí (±20% de palabras). La opción correcta NO debe ser la más larga ni la más corta; los distractores deben ser igual de específicos y detallados que la respuesta correcta. NUNCA uses distractores vagos de una sola palabra cuando la correcta es una frase.`,
             `Genera EXACTAMENTE ${infCount} afirmaciones de INFERENCIA: cada una con statement (afirmación sobre el texto), context_fragment (cita breve del texto que apoya o refuta), correct_answer: "verdadero", "falso" o "indeterminado".`,
             `Genera EXACTAMENTE ${vocCount} pares de VOCABULARIO: word (palabra del texto) y definition (significado adecuado para primaria).`,
             `Genera EXACTAMENTE ${seqCount} eventos de SECUENCIA: text (oración que describe un evento del cuento en orden cronológico), correct_order (1, 2, 3...). Orden lógico del relato.`,
@@ -221,7 +221,14 @@ export async function POST(req: Request) {
       result.vocabulary_pairs = [];
       result.sequence_items = [];
     } else {
-      if (Array.isArray(result.questions)) result.questions = result.questions.slice(0, qCount);
+      if (Array.isArray(result.questions)) {
+        result.questions = result.questions.slice(0, qCount).map((q: { q: string; options: string[]; answer_index: number }) => {
+          // Shuffle options so the correct answer isn't identifiable by position or length
+          const correctText = q.options[q.answer_index];
+          const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+          return { ...q, options: shuffled, answer_index: shuffled.indexOf(correctText) };
+        });
+      }
       if (Array.isArray(result.inference_statements)) result.inference_statements = result.inference_statements.slice(0, infCount);
       if (Array.isArray(result.vocabulary_pairs)) result.vocabulary_pairs = result.vocabulary_pairs.slice(0, vocCount);
       if (Array.isArray(result.sequence_items)) {
