@@ -37,7 +37,7 @@ const formSchema = z.object({
   topic: z.string().min(3).max(80),
   grade: z.number().int().min(1).max(3),
   difficulty: z.enum(["facil", "medio", "dificil"]),
-  words: z.number().int().min(60).max(220),
+  words: z.number().int().min(120).max(220),
   include_questions: z.boolean(),
 });
 
@@ -227,7 +227,7 @@ export function TextGenerator() {
 
     const parsed = formSchema.safeParse(form);
     if (!parsed.success) {
-      setError("Revisa los campos: tema (3–80), grado (1–3), palabras (60–220).");
+      setError("Revisa los campos: tema (3–80), grado (1–3), palabras (120–220).");
       return;
     }
 
@@ -513,12 +513,12 @@ export function TextGenerator() {
               <Input
                 id="words"
                 type="number"
-                min={60}
+                min={120}
                 max={220}
                 value={form.words}
                 onChange={(e) => setForm((f) => ({ ...f, words: Number(e.target.value) }))}
               />
-              <p className="text-xs text-muted-foreground">60–220 palabras</p>
+              <p className="text-xs text-muted-foreground">120–220 palabras</p>
             </div>
           </div>
 

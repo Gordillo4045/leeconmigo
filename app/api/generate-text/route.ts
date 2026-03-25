@@ -5,7 +5,7 @@ import { z } from "zod";
 /* ==================== INPUT VALIDATION ==================== */
 const inputSchema = z.object({
   topic: z.string().min(3).max(80),
-  words: z.number().int().min(60).max(220),
+  words: z.number().int().min(120).max(220),
   difficulty: z.enum(["facil", "medio", "dificil"]),
   grade: z.number().int().min(1).max(3),
   include_questions: z.boolean(),
@@ -133,14 +133,13 @@ export async function POST(req: Request) {
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    const minWords = Math.ceil(words * 0.95);
-    const maxWords = Math.ceil(words * 1.1);
+    const minWords = words - 3;
+    const maxWords = words + 3;
 
     const systemPrompt = [
       "Eres un generador de textos escolares en español neutro para primaria (1° a 3°).",
       "REGLAS DURAS: Responde SOLO con JSON válido (sin texto extra). El texto debe ser un solo bloque continuo de prosa (sin listas, sin viñetas, sin saltos de párrafo innecesarios).",
-      `LONGITUD OBLIGATORIA del campo "text": MÍNIMO ${minWords} palabras, MÁXIMO ${maxWords} palabras.`,
-      `El texto NO puede terminar antes de alcanzar ${minWords} palabras. Si el relato concluye antes, amplía con descripciones, contexto o detalles adicionales hasta completar el mínimo.`,
+      `LONGITUD EXACTA del campo "text": EXACTAMENTE ${words} palabras (tolerancia máxima: ${minWords}–${maxWords} palabras). Cuenta las palabras mientras escribes. Si el relato concluye antes, amplía con descripciones, diálogos o detalles hasta alcanzar el conteo. Si ya superaste el límite, recorta la última oración.`,
       `Dificultad: ${difficulty}. Grado: ${grade}.`,
       include_questions
         ? [
@@ -153,7 +152,7 @@ export async function POST(req: Request) {
     ].join("\n");
 
     const userPrompt = [
-      `IMPORTANTE: el campo "text" debe tener entre ${minWords} y ${maxWords} palabras — no lo cortes antes.`,
+      `IMPORTANTE: el campo "text" debe tener EXACTAMENTE ${words} palabras (máximo ±3). Cuenta mientras escribes.`,
       `Temática: ${topic}. Grado: ${grade}. Dificultad: ${difficulty}. Palabras objetivo: ${words}.`,
       "Devuelve: title, topic, difficulty, grade, word_count_estimate, text,",
       "questions (preguntas de comprensión con q, options[4], answer_index 0-3),",
